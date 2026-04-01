@@ -156,4 +156,4 @@ MIT — see [LICENSE](LICENSE)
 
 - Fork of [ClaudeKit CLI](https://github.com/mrgoonie/claudekit-cli) by mrgoonie
 - Auto-claude pipeline by Jack Huynh
-- Research contributions from Thierry (#goldmine workflow)
+- Research contributions from team collaborators

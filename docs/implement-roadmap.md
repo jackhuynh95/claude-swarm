@@ -1,7 +1,7 @@
 # Claude-Swarm Implementation Roadmap
 
 **Date**: 2026-04-01
-**Source**: CK watch analysis + CK v2.14.0 spec + auto-claude pipeline + GPT-5.4 research + Thierry's #goldmine workflow
+**Source**: CK watch analysis + CK v2.14.0 spec + auto-claude pipeline + GPT-5.4 research + team workflow insights
 **Repo**: `claude-swarm` (fork of `mrgoonie/claudekit-cli`)
 
 ---
@@ -429,5 +429,5 @@ claude-swarm/
 | CK watch gap analysis | `auto-claude/plans/reports/researcher-260330-1736-*` | 13 gaps (clarifying, safety filter, rate limiting) |
 | GPT-5.4 Obsidian research | `auto-claude/issues/research-ck-v2-obsidian-vault-by-gpt-5.4/` | Hybrid model: vault + dream |
 | GPT-5.4 CLI learnings | `auto-claude/issues/research-ck-v2-obsidian-vault-by-gpt-5.4-free-code/` | Wrap CLI better, verification, budget, parity matrix |
-| Thierry #goldmine workflow | Slack conversation 2026-03-31 | 2 days specifying, Obsidian as memory, /obsidian-journal |
+| Team workflow insights | Internal discussion 2026-03-31 | 2 days specifying, Obsidian as memory, /obsidian-journal |
 | Auto-claude existing scripts | `auto-claude/*.sh` | fix, ship, verify, report, read, brainstorm, looper |
