@@ -282,13 +282,13 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 | # | Task | Status |
 |---|---|---|
 | 38 | Create `/obsidian-journal` skill — daily journal + lesson extraction | Done (from CK fork: .claude/rules/obsidian-integration.md + 7 commands) |
-| 39 | Wire journal-writer as post-ship phase in watcher | Pending |
-| 40 | Context loading — read obsidian-vault/Notes before planning | Pending |
+| 39 | Wire journal-writer as post-ship phase in watcher | Done |
+| 40 | Context loading — read obsidian-vault/Notes before planning | Done |
 | 41 | Daily journal format: issues completed, decisions, lessons, unresolved | Done (covered by /obsidian-journal, /obsidian-lesson, /obsidian-decide) |
 | 42 | Notes extraction: detect patterns, create [[wikilinked]] notes | Done (covered by /obsidian-pattern, /obsidian-link) |
-| 43 | Review/Runs: store test results and run summaries | Pending |
+| 43 | Review/Runs: store test results and run summaries | Done |
 
-**Milestone**: Watcher reads vault before planning, writes journal after completing.
+**Milestone**: Watcher reads vault before planning, writes journal after completing. ✓ Complete
 
 ---
 
@@ -336,7 +336,9 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 | E2E browser testing | | Yes (verify-issue.sh) | | 4 |
 | Slack reporting | | Yes (report-issue.sh) | | 4 |
 | Design review | | Yes (--frontend-design) | | 4 |
-| Obsidian journal | | | Yes | 4 |
+| Obsidian journal | | | Yes | 7 |
+| Vault context loader | | | Yes | 7 |
+| Run recorder | | | Yes | 7 |
 | Slack reader (standalone) | | Yes (read-issue.sh) | | 5 |
 | Brainstormer (standalone) | | Yes (brainstorm-issue.sh) | | 5 |
 | Sensitive data filter | | | Yes | 6 |
@@ -393,6 +395,8 @@ claude-swarm/
 │   │           ├── slack-reporter.ts ← NEW (report-issue.sh)
 │   │           ├── design-reviewer.ts← NEW
 │   │           ├── journal-writer.ts ← NEW
+│   │           ├── vault-context-loader.ts ← NEW
+│   │           ├── run-recorder.ts ← NEW
 │   │           ├── safety-filter.ts  ← NEW
 │   │           └── budget-guard.ts   ← NEW
 │   └── cli/
