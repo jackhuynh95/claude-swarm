@@ -38,7 +38,7 @@ FROM_PHASE=""
 HARD_MODE=""
 PARALLEL_MODE=""
 SHIP_TARGET="beta"
-BUDGET_PER_PHASE="3.00"
+BUDGET_PER_PHASE="10.00"
 
 # Colors
 RED='\033[0;31m'
@@ -156,7 +156,7 @@ $roadmap_content" "opus" "max" "$budget"
     plan_path=$(find_latest_plan)
     if [[ -n "$plan_path" ]]; then
         info "Red-team review of plan..."
-        run_claude "/ck:plan red-team $plan_path" "opus" "high" "1.00"
+        run_claude "/ck:plan red-team $plan_path" "opus" "high" "5.00"
     fi
 }
 
@@ -180,18 +180,18 @@ $roadmap_content" "sonnet" "medium" "$BUDGET_PER_PHASE"
 
 run_test() {
     info "Running tests..."
-    run_claude "/test Run all tests and report results." "sonnet" "low" "1.00"
+    run_claude "/test Run all tests and report results." "sonnet" "low" "2.00"
 }
 
 run_review() {
     local description="$1"
     info "Code review: $description"
-    run_claude "Review the recent code changes for $description. Check for bugs, security issues, and code quality. Report PASS/FAIL with evidence." "sonnet" "medium" "1.00" "--allowedTools Read,Grep,Glob"
+    run_claude "Review the recent code changes for $description. Check for bugs, security issues, and code quality. Report PASS/FAIL with evidence." "sonnet" "medium" "2.00" "--allowedTools Read,Grep,Glob"
 }
 
 run_security() {
     info "Security scan..."
-    run_claude "/ck:security-scan Run a security review. Check for hardcoded secrets, injection vulnerabilities, auth issues, OWASP Top 10." "sonnet" "medium" "1.00" "--allowedTools Read,Grep,Glob,Bash"
+    run_claude "/ck:security-scan Run a security review. Check for hardcoded secrets, injection vulnerabilities, auth issues, OWASP Top 10." "sonnet" "medium" "3.00" "--allowedTools Read,Grep,Glob,Bash"
 }
 
 run_ship() {
