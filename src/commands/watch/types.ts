@@ -99,3 +99,23 @@ export interface PhaseResult {
   durationMs: number;
   artifacts?: string[];      // PR links, plan files, test results
 }
+
+// Task registry types (Phase 8)
+export type ExitReason = 'completed' | 'error' | 'timeout' | 'budget_exceeded' | 'needs_refix';
+
+export interface TaskMetadata {
+  id: string;                // "run-{issueNum}-{timestamp}"
+  issueNumber: number;
+  issueTitle: string;
+  role: FlowType;
+  issueType: IssueType;
+  state: IssueState;
+  startedAt: string;         // ISO
+  endedAt?: string;          // ISO
+  exitReason?: ExitReason;
+  exitMessage?: string;
+  phases: PhaseResult[];
+  artifacts: string[];
+  costUsd?: number;
+  resumable: boolean;
+}

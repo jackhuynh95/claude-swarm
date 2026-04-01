@@ -298,13 +298,13 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 
 | # | Task | Status |
 |---|---|---|
-| 44 | Create `claude-swarm status` command — show active tasks, queue, results | Pending |
-| 45 | Create run history / resume index | Pending |
-| 46 | Task metadata layer: id, role, start/end, status, exit reason, artifacts | Pending |
-| 47 | Create capability matrix (implemented / partial / planned / rejected) | Pending |
-| 48 | Searchable plan/run/review index | Pending |
+| 44 | Create `claude-swarm status` command — show active tasks, queue, results | Done |
+| 45 | Create run history / resume index | Done |
+| 46 | Task metadata layer: id, role, start/end, status, exit reason, artifacts | Done |
+| 47 | Create capability matrix (implemented / partial / planned / rejected) | Done |
+| 48 | Searchable plan/run/review index | Done |
 
-**Milestone**: Operator can inspect, resume, and audit all swarm activity.
+**Milestone**: Operator can inspect, resume, and audit all swarm activity. ✓ Complete
 
 ---
 
