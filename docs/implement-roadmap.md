@@ -196,12 +196,12 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 
 | # | Task | Status |
 |---|---|---|
-| 8 | Create `issue-router.ts` — label + type detection | Pending |
-| 9 | Create `model-router.ts` — opus/sonnet/haiku per phase | Pending |
-| 10 | Wire router into CK's poll cycle (replace single-track dispatch) | Pending |
-| 11 | Add issue type detection: [BUG] → debug-flow, [FEATURE] → ship-flow | Pending |
-| 12 | Add smart label injection: "hard" → opus, "frontend" → design-review | Pending |
-| 13 | Add [DOCS/CHORE] → ship-flow with --no-test | Pending |
+| 8 | Create `issue-router.ts` — label + type detection | Done |
+| 9 | Create `model-router.ts` — opus/sonnet/haiku per phase | Done |
+| 10 | Wire router into CK's poll cycle (replace single-track dispatch) | Done |
+| 11 | Add issue type detection: [BUG] → debug-flow, [FEATURE] → ship-flow | Done |
+| 12 | Add smart label injection: "hard" → opus, "frontend" → design-review | Done |
+| 13 | Add [DOCS/CHORE] → ship-flow with --no-test | Done |
 
 **Milestone**: Watcher routes different issue types to different flows.
 
@@ -281,11 +281,11 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 
 | # | Task | Status |
 |---|---|---|
-| 38 | Create `/obsidian-journal` skill — daily journal + lesson extraction | Pending |
+| 38 | Create `/obsidian-journal` skill — daily journal + lesson extraction | Done (from CK fork: .claude/rules/obsidian-integration.md + 7 commands) |
 | 39 | Wire journal-writer as post-ship phase in watcher | Pending |
 | 40 | Context loading — read obsidian-vault/Notes before planning | Pending |
-| 41 | Daily journal format: issues completed, decisions, lessons, unresolved | Pending |
-| 42 | Notes extraction: detect patterns, create [[wikilinked]] notes | Pending |
+| 41 | Daily journal format: issues completed, decisions, lessons, unresolved | Done (covered by /obsidian-journal, /obsidian-lesson, /obsidian-decide) |
+| 42 | Notes extraction: detect patterns, create [[wikilinked]] notes | Done (covered by /obsidian-pattern, /obsidian-link) |
 | 43 | Review/Runs: store test results and run summaries | Pending |
 
 **Milestone**: Watcher reads vault before planning, writes journal after completing.
