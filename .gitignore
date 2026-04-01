@@ -49,6 +49,9 @@ docs/screenshots/
 docs/journals/
 docs/research/
 
+# Obsidian local config
+obsidian-vault/.obsidian/
+
 # Temp files
 prompt.md
 logs.txt

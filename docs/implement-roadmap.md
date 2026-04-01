@@ -65,9 +65,9 @@
 │  │ Debug Flow  │  │ Ship Flow    │  │ Verify Flow  │          │
 │  │             │  │              │  │              │          │
 │  │ /debug      │  │ /plan:fast   │  │ /test:e2e    │          │
-│  │ /fix        │  │ /code:auto   │  │ agent-browser│          │
+│  │ /fix        │  │ /ck:cook --auto│  │ agent-browser│          │
 │  │ /test       │  │  or          │  │              │          │
-│  │ retry loop  │  │ /code:no-test│  │              │          │
+│  │ retry loop  │  │ /ck:cook --no-test│  │              │          │
 │  └──────┬──────┘  └──────┬───────┘  └──────┬───────┘          │
 │         └────────────────┼─────────────────┘                   │
 │                          ▼                                      │
@@ -179,12 +179,12 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 | # | Task | Status |
 |---|---|---|
 | 1 | Fork `mrgoonie/claudekit-cli` → `claude-swarm` | Done |
-| 2 | Set up project structure (docs/, obsidian-vault/, .claude/) | Pending |
-| 3 | Verify CK watch daemon runs as-is from fork | Pending |
-| 4 | Create `obsidian-vault/` skeleton (Daily/, Notes/, Review/, Decisions/) | Pending |
-| 5 | Create CLAUDE.md with project conventions | Pending |
-| 6 | Set up GitHub labels (ready_for_dev, shipped, verified, etc.) | Pending |
-| 7 | Port `setup-labels.sh` logic or create TS equivalent | Pending |
+| 2 | Set up project structure (docs/, obsidian-vault/, .claude/) | Done |
+| 3 | Verify CK watch daemon runs as-is from fork | Done |
+| 4 | Create `obsidian-vault/` skeleton (Daily/, Notes/, Review/, Decisions/) | Done |
+| 5 | Create CLAUDE.md with project conventions | Done |
+| 6 | Set up GitHub labels (ready_for_dev, shipped, verified, etc.) | Done |
+| 7 | Port `setup-labels.sh` logic or create TS equivalent | Done |
 
 **Milestone**: CK watch daemon runs against a test repo from the fork.
 
@@ -214,7 +214,7 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 | # | Task | Status |
 |---|---|---|
 | 14 | Create `debug-flow.ts` — /debug → /fix → /test retry loop | Pending |
-| 15 | Create `ship-flow.ts` — /plan:fast → /code:auto → PR | Pending |
+| 15 | Create `ship-flow.ts` — /plan:fast → /ck:cook --auto → PR | Pending |
 | 16 | Port Claude CLI subprocess spawning with timeout (SIGTERM → 5s → SIGKILL) | Pending |
 | 17 | Port branch setup + commit + PR creation logic | Pending |
 | 18 | Port label transition logic (ready_for_dev → shipped → verified) | Pending |
@@ -410,7 +410,7 @@ claude-swarm/
 ## Key Design Principles
 
 1. **Hybrid memory**: Obsidian for humans, /dream for Claude — not replacement, complement
-2. **Wrap Claude Code, don't replace it**: Use CLI skills (/debug, /fix, /plan:fast, /code:auto) — don't rebuild Claude
+2. **Wrap Claude Code, don't replace it**: Use CLI skills (/debug, /fix, /plan:fast, /ck:cook --auto) — don't rebuild Claude
 3. **Files as protocol**: Plans, reports, journals in real files — debuggable, git-versioned
 4. **Verification before reporting**: Verifier blocks optimistic success claims
 5. **Local-first**: No dependency on remote services beyond GitHub and Slack
