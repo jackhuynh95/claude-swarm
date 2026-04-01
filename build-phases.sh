@@ -2,7 +2,8 @@
 # ==============================================================================
 # Script: build-phases.sh
 # Description: Execute claude-swarm implementation roadmap phase by phase.
-#              Each phase: /ck:plan → /ck:cook → /test → /ck:ship
+#              Each phase: plan → cook → test → ship
+#              Uses claude -p with proper CLI flags.
 #
 # Usage:
 #   ./build-phases.sh                    # run all phases sequentially
@@ -13,10 +14,10 @@
 #   ./build-phases.sh --dry-run          # show commands without executing
 #   ./build-phases.sh --auto             # skip all confirmations (YOLO)
 #   ./build-phases.sh --ship-to beta     # ship target (beta or official)
+#   ./build-phases.sh --budget 5.00      # max USD per phase (default: 3.00)
 #
 # Requirements:
 #   - Claude CLI installed and authenticated
-#   - CK >= v2.14.0 (for /ck: prefix commands)
 #   - gh CLI authenticated
 # ==============================================================================
 
@@ -37,6 +38,7 @@ FROM_PHASE=""
 HARD_MODE=""
 PARALLEL_MODE=""
 SHIP_TARGET="beta"
+BUDGET_PER_PHASE="3.00"
 
 # Colors
 RED='\033[0;31m'
@@ -57,6 +59,7 @@ for i in "${!ARGS[@]}"; do
         --phase)     SINGLE_PHASE="${ARGS[$((i+1))]:-}" ;;
         --from)      FROM_PHASE="${ARGS[$((i+1))]:-}" ;;
         --ship-to)   SHIP_TARGET="${ARGS[$((i+1))]:-beta}" ;;
+        --budget)    BUDGET_PER_PHASE="${ARGS[$((i+1))]:-3.00}" ;;
     esac
 done
 
@@ -71,7 +74,12 @@ info() { log "INFO" "${BLUE}$*${NC}"; }
 success() { log "OK" "${GREEN}$*${NC}"; }
 warn() { log "WARN" "${YELLOW}$*${NC}"; }
 error() { log "ERROR" "${RED}$*${NC}"; }
-header() { echo -e "\n${CYAN}══════════════════════════════════════════${NC}" | tee -a "$LOG_FILE"; log "PHASE" "${CYAN}$*${NC}"; echo -e "${CYAN}══════════════════════════════════════════${NC}" | tee -a "$LOG_FILE"; }
+header() {
+    echo "" | tee -a "$LOG_FILE"
+    echo -e "${CYAN}══════════════════════════════════════════${NC}" | tee -a "$LOG_FILE"
+    log "PHASE" "${CYAN}$*${NC}"
+    echo -e "${CYAN}══════════════════════════════════════════${NC}" | tee -a "$LOG_FILE"
+}
 
 # ------------------------------------------------------------------------------
 # Claude CLI wrapper
@@ -81,99 +89,120 @@ run_claude() {
     local prompt="$1"
     local model="${2:-sonnet}"
     local effort="${3:-medium}"
-    local max_turns="${4:-5}"
-    local flags=""
+    local budget="${4:-$BUDGET_PER_PHASE}"
+    local extra_flags="${5:-}"
 
-    [[ "$AUTO_MODE" == "true" ]] && flags="--dangerously-skip-permissions"
+    # Build flags
+    local flags="--model $model --effort $effort --output-format text --max-budget-usd $budget"
+
+    # Permission mode
+    if [[ "$AUTO_MODE" == "true" ]]; then
+        flags="$flags --permission-mode auto"
+    fi
+
+    # Continue from previous session in same dir
+    flags="$flags --continue"
+
+    # Extra flags (e.g., --allowedTools)
+    [[ -n "$extra_flags" ]] && flags="$flags $extra_flags"
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        info "[DRY RUN] claude -p \"${prompt:0:80}...\" --model $model --effort $effort --max-turns $max_turns"
+        info "[DRY RUN] claude -p \"${prompt:0:100}...\" $flags"
         return 0
     fi
 
-    info "Claude ($model, effort=$effort, turns=$max_turns): ${prompt:0:80}..."
+    info "Claude ($model, effort=$effort, budget=\$$budget): ${prompt:0:80}..."
 
-    claude -p "$prompt" \
-        --model "$model" \
-        --effort "$effort" \
-        --max-turns "$max_turns" \
-        --output-format text \
-        $flags 2>&1 | tee -a "$LOG_FILE"
+    # shellcheck disable=SC2086
+    claude -p "$prompt" $flags 2>&1 | tee -a "$LOG_FILE"
 
-    return ${PIPESTATUS[0]}
+    local exit_code=${PIPESTATUS[0]}
+    if [[ $exit_code -ne 0 ]]; then
+        warn "Claude exited with code $exit_code"
+    fi
+    return $exit_code
 }
 
-# ------------------------------------------------------------------------------
-# Phase runner
-# ------------------------------------------------------------------------------
+# Convenience wrappers for common patterns
+run_plan() {
+    local description="$1"
+    local effort="${2:-high}"
+    local budget="${3:-$BUDGET_PER_PHASE}"
+
+    # Read roadmap content and inject into prompt
+    local roadmap_content
+    roadmap_content=$(cat "$ROADMAP")
+
+    run_claude "/plan:fast $description
+
+Reference roadmap:
+$roadmap_content" "opus" "$effort" "$budget"
+}
+
+run_plan_hard() {
+    local description="$1"
+    local budget="${2:-$BUDGET_PER_PHASE}"
+
+    local roadmap_content
+    roadmap_content=$(cat "$ROADMAP")
+
+    # Full plan (opus, max effort)
+    run_claude "/plan $description
+
+Reference roadmap:
+$roadmap_content" "opus" "max" "$budget"
+
+    # Red-team review
+    local plan_path
+    plan_path=$(find_latest_plan)
+    if [[ -n "$plan_path" ]]; then
+        local plan_content
+        plan_content=$(cat "$plan_path")
+        info "Red-team review of plan..."
+        run_claude "/plan:validate $plan_path" "opus" "high" "1.00"
+    fi
+}
+
+run_cook() {
+    local plan_path
+    plan_path=$(find_latest_plan)
+    if [[ -z "$plan_path" ]]; then
+        error "No plan found in $PLAN_DIR"
+        return 1
+    fi
+
+    info "Cooking from: $plan_path"
+    run_claude "/code:auto $plan_path" "sonnet" "medium" "$BUDGET_PER_PHASE"
+}
+
+run_test() {
+    info "Running tests..."
+    run_claude "/test Run all tests and report results." "sonnet" "low" "1.00"
+}
+
+run_review() {
+    local description="$1"
+    info "Code review: $description"
+    run_claude "Review the recent code changes for $description. Check for bugs, security issues, and code quality. Report PASS/FAIL with evidence." "sonnet" "medium" "1.00" "--allowedTools Read,Grep,Glob"
+}
+
+run_security() {
+    info "Security scan..."
+    run_claude "Run a security review of the codebase. Check for: hardcoded secrets, injection vulnerabilities, auth issues, OWASP Top 10. Report findings." "sonnet" "medium" "1.00" "--allowedTools Read,Grep,Glob,Bash"
+}
+
+run_ship() {
+    info "Shipping to $SHIP_TARGET..."
+    run_claude "/git:cp Stage, commit, and push all changes." "sonnet" "low" "0.50"
+}
 
 find_latest_plan() {
     find "$PLAN_DIR" -name "plan.md" -type f -exec stat -f "%m %N" {} \; 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-
 }
 
-run_plan() {
-    local phase_num="$1"
-    local description="$2"
-    local plan_effort="${3:-high}"
-
-    info "Planning Phase $phase_num..."
-    run_claude "/ck:plan --fast @$ROADMAP $description" "opus" "$plan_effort" "8"
-}
-
-run_plan_hard() {
-    local phase_num="$1"
-    local description="$2"
-
-    info "Planning Phase $phase_num (full plan + red-team)..."
-    run_claude "/ck:plan @$ROADMAP $description" "opus" "max" "10"
-
-    local plan_path=$(find_latest_plan)
-    if [[ -n "$plan_path" ]]; then
-        info "Red-team review..."
-        run_claude "/ck:plan red-team @$plan_path" "opus" "high" "5"
-    fi
-}
-
-run_cook() {
-    local plan_path=$(find_latest_plan)
-    if [[ -z "$plan_path" ]]; then
-        error "No plan found"
-        return 1
-    fi
-
-    info "Cooking: $plan_path"
-    run_claude "/ck:cook --auto @$plan_path" "sonnet" "medium" "10"
-}
-
-run_cook_parallel() {
-    local description="$1"
-
-    info "Parallel cook: $description"
-    run_claude "/ck:team implement '$description' --devs 2 --reviewers 1" "sonnet" "medium" "10"
-}
-
-run_test() {
-    info "Testing..."
-    run_claude "/test" "sonnet" "low" "3"
-}
-
-run_review() {
-    local description="$1"
-    info "Team review: $description"
-    run_claude "/ck:team review '$description' --reviewers 2" "sonnet" "medium" "5"
-}
-
-run_security() {
-    info "Security scan..."
-    run_claude "/ck:security-scan --full" "sonnet" "medium" "3"
-}
-
-run_ship() {
-    info "Shipping to $SHIP_TARGET..."
-    run_claude "/ck:ship --$SHIP_TARGET" "sonnet" "medium" "5"
-}
-
 confirm_proceed() {
+    local next_phase="$1"
+
     if [[ "$AUTO_MODE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
         return 0
     fi
@@ -181,7 +210,7 @@ confirm_proceed() {
     echo ""
     read -p "$(echo -e "${YELLOW}Proceed to next step? [Y/n]${NC} ")" confirm
     if [[ "${confirm:-Y}" =~ ^[Nn] ]]; then
-        warn "Paused by user. Resume with: $0 --from $1"
+        warn "Paused by user. Resume with: $0 --from $next_phase"
         exit 0
     fi
 }
@@ -193,7 +222,7 @@ confirm_proceed() {
 phase_0_1() {
     header "Phase 0+1: Foundation + CK v2.14.0 Migration"
 
-    run_plan "0+1" "Implement Phase 0 (CK v2.14.0 command migration) and Phase 1 (Foundation). Tasks: migrate /code:* to /ck:cook prefix, set up project structure (docs/, obsidian-vault/, .claude/), verify CK watch daemon runs, create obsidian-vault/ skeleton, create CLAUDE.md, set up GitHub labels."
+    run_plan "Implement Phase 0 (CK v2.14.0 command migration) and Phase 1 (Foundation). Tasks: migrate all /code:* references to /ck:cook prefix, set up project structure (docs/, obsidian-vault/, .claude/), verify CK watch daemon runs from fork, create obsidian-vault/ skeleton (Daily/, Notes/, Review/, Decisions/), create CLAUDE.md with project conventions, set up GitHub labels (ready_for_dev, shipped, verified)."
 
     confirm_proceed 2
     run_cook
@@ -206,7 +235,7 @@ phase_0_1() {
 phase_2() {
     header "Phase 2: Issue Router"
 
-    run_plan "2" "Implement Phase 2 (Issue Router). Tasks: create issue-router.ts with label + type detection, create model-router.ts for opus/sonnet/haiku per phase, wire router into CK poll cycle replacing single-track dispatch, add type detection ([BUG] → debug-flow, [FEATURE] → ship-flow), add smart label injection (hard → opus, frontend → design-review), add [DOCS/CHORE] → ship-flow --no-test."
+    run_plan "Implement Phase 2 (Issue Router). Tasks: create issue-router.ts with label + type detection, create model-router.ts for opus/sonnet/haiku per phase, wire router into CK poll cycle replacing single-track dispatch, add type detection ([BUG] to debug-flow, [FEATURE] to ship-flow), add smart label injection (hard label to opus, frontend label to design-review), add [DOCS/CHORE] to ship-flow with no-test."
 
     confirm_proceed 3
     run_cook
@@ -219,7 +248,7 @@ phase_2() {
 phase_3() {
     header "Phase 3: Execution Flows (HARD)"
 
-    run_plan_hard "3" "Implement Phase 3 (Execution Flows). Tasks: create debug-flow.ts (/debug → /fix → /test retry loop), create ship-flow.ts (/ck:plan --fast → /ck:cook --auto → PR), port Claude CLI subprocess spawning with timeout (SIGTERM → 5s → SIGKILL), port branch setup + commit + PR creation, port label transitions (ready_for_dev → shipped → verified), add clarifying phase."
+    run_plan_hard "Implement Phase 3 (Execution Flows). Tasks: create debug-flow.ts with /debug then /fix then /test retry loop, create ship-flow.ts with /plan:fast then /ck:cook --auto then PR, port Claude CLI subprocess spawning with timeout (SIGTERM then 5s then SIGKILL), port branch setup + commit + PR creation, port label transitions (ready_for_dev to shipped to verified), add clarifying phase where Claude asks spec questions and waits for reply."
 
     confirm_proceed 3
     run_cook
@@ -233,15 +262,10 @@ phase_3() {
 phase_4() {
     header "Phase 4: Post-Ship Phases"
 
-    if [[ "$PARALLEL_MODE" == "true" ]]; then
-        run_cook_parallel "Phase 4: build verifier.ts, e2e-runner.ts, slack-reporter.ts, design-reviewer.ts, journal-writer.ts as independent modules. Wire all into watcher lifecycle after implementation phase."
-    else
-        run_plan "4" "Implement Phase 4 (Post-Ship Phases). Tasks: create verifier.ts (independent verify agent PASS/FAIL/PARTIAL), create e2e-runner.ts (agent-browser E2E testing), create slack-reporter.ts (/slack-report to team), create design-reviewer.ts (frontend-design, manual trigger only), create journal-writer.ts (obsidian-vault Daily + Notes), wire all post-ship phases into watcher lifecycle."
+    run_plan "Implement Phase 4 (Post-Ship Phases). Tasks: create verifier.ts (independent verify agent with PASS/FAIL/PARTIAL verdict), create e2e-runner.ts (agent-browser E2E testing), create slack-reporter.ts (/slack-report to team), create design-reviewer.ts (frontend-design review, manual trigger only), create journal-writer.ts (obsidian-vault Daily + Notes extraction), wire all post-ship phases into watcher lifecycle."
 
-        confirm_proceed 5
-        run_cook
-    fi
-
+    confirm_proceed 5
+    run_cook
     run_test
     run_ship
 
@@ -251,7 +275,7 @@ phase_4() {
 phase_5() {
     header "Phase 5: Standalone CLI Tools"
 
-    run_plan "5" "Implement Phase 5 (Standalone CLI Tools). Tasks: create slack-reader.ts (/slack-read task extraction), create brainstormer.ts (/brainstorm → /issue pipeline), create CLI entry points (claude-swarm read, claude-swarm brainstorm), port report-issue standalone mode." "medium"
+    run_plan "Implement Phase 5 (Standalone CLI Tools). Tasks: create slack-reader.ts for /slack-read task extraction, create brainstormer.ts for /brainstorm to /issue pipeline, create CLI entry points (claude-swarm read, claude-swarm brainstorm), port report-issue standalone mode." "medium"
 
     confirm_proceed 6
     run_cook
@@ -264,7 +288,7 @@ phase_5() {
 phase_6() {
     header "Phase 6: Safety & Reliability"
 
-    run_plan "6" "Implement Phase 6 (Safety & Reliability). Tasks: add sensitive data filter (strip secrets before posting to GitHub), add response truncation (GitHub API limits), add AI disclaimer to bot comments, add comment loop prevention (detect own bot comments), add maintainer-last detection, add budget guards (per-worker token caps, continuation limits), add nightly cost summary, add conversation history tracking across phases."
+    run_plan "Implement Phase 6 (Safety & Reliability). Tasks: add sensitive data filter to strip secrets before posting to GitHub, add response truncation for GitHub API limits, add AI disclaimer to bot comments, add comment loop prevention to detect own bot comments and skip, add maintainer-last detection, add budget guards with per-worker token caps and continuation limits, add nightly cost summary, add conversation history tracking across phases."
 
     confirm_proceed 7
     run_cook
@@ -278,13 +302,12 @@ phase_6() {
 phase_7() {
     header "Phase 7: Obsidian Vault Integration"
 
-    run_plan "7" "Implement Phase 7 (Obsidian Vault Integration). Tasks: create /obsidian-journal skill (daily journal + lesson extraction), wire journal-writer as post-ship phase, add context loading (read obsidian-vault/Notes before planning), implement daily journal format, implement notes extraction with [[wikilinks]], implement Review/Runs test result storage."
+    run_plan "Implement Phase 7 (Obsidian Vault Integration). Tasks: create /obsidian-journal skill for daily journal + lesson extraction, wire journal-writer as post-ship phase in watcher, add context loading to read obsidian-vault/Notes before planning, implement daily journal format with issues completed and decisions and lessons and unresolved, implement notes extraction with wikilinks, implement Review/Runs test result storage."
 
     confirm_proceed 8
     run_cook
     run_test
 
-    # Phase 7+ ships to official (production-ready)
     SHIP_TARGET="official"
     run_ship
 
@@ -294,7 +317,7 @@ phase_7() {
 phase_8() {
     header "Phase 8: Operator UX & Observability"
 
-    run_plan "8" "Implement Phase 8 (Operator UX & Observability). Tasks: create claude-swarm status command (active tasks, queue, results), create run history/resume index, implement task metadata layer (id, role, start/end, status, exit reason, artifacts), create capability matrix, create searchable plan/run/review index." "medium"
+    run_plan "Implement Phase 8 (Operator UX & Observability). Tasks: create claude-swarm status command showing active tasks and queue and results, create run history and resume index, implement task metadata layer with id and role and timestamps and status and exit reason and artifacts, create capability matrix, create searchable plan/run/review index." "medium"
 
     confirm_proceed 8
     run_cook
@@ -312,6 +335,8 @@ phase_8() {
 # ------------------------------------------------------------------------------
 
 main() {
+    local start_time=$(date +%s)
+
     info "=========================================="
     info "claude-swarm build"
     info "Roadmap: $ROADMAP"
@@ -322,6 +347,7 @@ main() {
     [[ "$HARD_MODE" == "true" ]] && info "Mode: hard (red-team)"
     [[ "$PARALLEL_MODE" == "true" ]] && info "Mode: parallel"
     info "Ship target: $SHIP_TARGET"
+    info "Budget per phase: \$$BUDGET_PER_PHASE"
     info "=========================================="
 
     cd "$PROJECT_ROOT"
@@ -344,6 +370,10 @@ main() {
             8)   phase_8 ;;
             *)   error "Unknown phase: $SINGLE_PHASE"; exit 1 ;;
         esac
+
+        local elapsed=$(( $(date +%s) - start_time ))
+        success "Phase $SINGLE_PHASE done in ${elapsed}s"
+        echo "Log: $LOG_FILE"
         return
     fi
 
@@ -363,12 +393,10 @@ main() {
         fi
     done
 
-    # Final summary
-    local duration=$(( $(date +%s) - $(date -j -f "%Y%m%d-%H%M%S" "$(basename "$LOG_FILE" .log | sed 's/build-//')" +%s 2>/dev/null || echo 0) ))
-
+    local elapsed=$(( $(date +%s) - start_time ))
     echo ""
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
-    success "BUILD COMPLETE"
+    success "BUILD COMPLETE in ${elapsed}s"
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
     echo "Log: $LOG_FILE"
     echo ""
