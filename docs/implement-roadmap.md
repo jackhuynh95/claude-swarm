@@ -1,7 +1,7 @@
 # Claude-Swarm Implementation Roadmap
 
 **Date**: 2026-04-01
-**Source**: CK watch analysis + auto-claude pipeline + GPT-5.4 research + Thierry's #goldmine workflow
+**Source**: CK watch analysis + CK v2.14.0 spec + auto-claude pipeline + GPT-5.4 research + Thierry's #goldmine workflow
 **Repo**: `claude-swarm` (fork of `mrgoonie/claudekit-cli`)
 
 ---
@@ -98,6 +98,77 @@
 │    → error / timeout / needs_refix                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Phase 0 — CK v2.14.0 Command Migration & New Skills
+
+**Goal**: Align with ClaudeKit v2.14.0 breaking changes and adopt new capabilities.
+
+### Breaking Changes: Command Migration
+
+| Legacy Command | New Command (v2.14.0) | Used In |
+|---|---|---|
+| `/code @plan.md` | `/ck:cook @plan.md` | ship-flow.ts |
+| `/code:no-test` | `/ck:cook <task> --no-test` | ship-flow.ts (DOCS/CHORE) |
+| `/code:parallel` | `/ck:cook <task> --parallel` | parallel execution |
+| `/code:auto` | `/ck:cook <task> --auto` | ship-flow.ts (unattended) |
+
+All `/ck:` prefix is **mandatory** in v2.14.0+ to avoid Claude Code built-in collisions.
+
+### New CK v2.14.0 Skills to Integrate
+
+| # | Task | Status |
+|---|---|---|
+| 0a | Migrate all `/code:*` refs → `/ck:cook` in execution flows | Pending |
+| 0b | Integrate `/ck:team` — spawn parallel agents (research, implement, review, debug) | Pending |
+| 0c | Integrate `/ck:team` red-team protocol into verifier.ts (adversarial review) | Pending |
+| 0d | Integrate `/ck:ship` — automated feature branch lifecycle (test → review → PR) | Pending |
+| 0e | Integrate `/ck:ship --official` vs `--beta` branch targeting | Pending |
+| 0f | Integrate `/ck:security-scan` into post-ship safety phase | Pending |
+| 0g | Integrate `/ck:llms` — generate llms.txt for AI-native codebase comprehension | Pending |
+| 0h | Integrate `/ck:problem-solving` techniques into debug-flow.ts | Pending |
+
+### Updated Skill Mapping (v2.14.0)
+
+```
+Phase: Brainstorm   → /ck:brainstorm (unchanged)
+Phase: Plan         → /ck:plan --fast (unchanged)
+Phase: Plan review  → /ck:plan red-team [NEW — adversarial review]
+Phase: Implement    → /ck:cook --auto @plan.md [RENAMED from /code:auto]
+Phase: Ship         → /ck:ship --official [NEW — full branch lifecycle]
+Phase: Security     → /ck:security-scan --full [NEW — OWASP audit]
+Phase: Debug        → /ck:problem-solving when-stuck [NEW — 6 sub-techniques]
+Phase: Team spawn   → /ck:team implement --devs 2 --reviewers 1 [NEW]
+Phase: Docs         → /ck:llms [NEW — llms.txt generation]
+```
+
+### Impact on Execution Flows
+
+**debug-flow.ts** (enhanced):
+```
+/debug → /ck:problem-solving when-stuck (if stuck after retry)
+       → /ck:cook --auto (fix, renamed from /code:auto)
+       → /test
+       → /ck:security-scan (if security label)
+```
+
+**ship-flow.ts** (enhanced):
+```
+/ck:plan --fast → /ck:plan red-team (adversarial review)
+               → /ck:cook --auto @plan.md (renamed from /code:auto)
+               → /ck:ship --official (replaces manual git push + gh pr create)
+```
+
+**verifier.ts** (enhanced):
+```
+/ck:team review --reviewers 2 (spawn adversarial reviewers)
+  → Pass 1: standard quality
+  → Pass 2: red-team protocol (think like attackers)
+  → PASS / FAIL / PARTIAL verdict
+```
+
+**Milestone**: All commands use `/ck:` prefix. New v2.14.0 skills wired into flows.
 
 ---
 
@@ -241,6 +312,12 @@
 
 | Capability | CK Fork (Kept) | Auto-Claude (Ported) | New | Phase |
 |---|---|---|---|---|
+| `/ck:cook` migration (from /code:*) | | | Yes | 0 |
+| `/ck:team` parallel agents + red-team | | | Yes | 0 |
+| `/ck:ship` branch lifecycle automation | | | Yes | 0 |
+| `/ck:security-scan` OWASP audit | | | Yes | 0 |
+| `/ck:llms` AI-native docs generation | | | Yes | 0 |
+| `/ck:problem-solving` 6 sub-techniques | | | Yes | 0 |
 | Daemon loop + poll | Yes | | | 1 |
 | State persistence (.ck.json) | Yes | | | 1 |
 | Process lock | Yes | | | 1 |
@@ -346,6 +423,7 @@ claude-swarm/
 
 | Source | Location | Key Insight |
 |---|---|---|
+| CK v2.14.0 spec | `auto-claude/ClaudeKit_Engineer_v2_14_0_AI_Agent_Instruction_Specification.md` | Breaking: /code→/ck:cook, new: /ck:team, /ck:ship, /ck:security-scan, /ck:llms, /ck:problem-solving |
 | CK watch analysis | `auto-claude/issues/research-claudekit-watch/` | 17-capability comparison, CK covers ship flow |
 | CK watch source code | `auto-claude/plans/reports/researcher-260330-1701-*` | Full source extraction, 15 modules, 9-state lifecycle |
 | CK watch gap analysis | `auto-claude/plans/reports/researcher-260330-1736-*` | 13 gaps (clarifying, safety filter, rate limiting) |
