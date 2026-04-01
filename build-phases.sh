@@ -100,9 +100,6 @@ run_claude() {
         flags="$flags --permission-mode auto"
     fi
 
-    # Continue from previous session in same dir
-    flags="$flags --continue"
-
     # Extra flags (e.g., --allowedTools)
     [[ -n "$extra_flags" ]] && flags="$flags $extra_flags"
 
@@ -133,7 +130,8 @@ run_plan() {
     local roadmap_content
     roadmap_content=$(cat "$ROADMAP")
 
-    run_claude "/plan:fast $description
+    # Use /ck:plan (CK skill) — falls back to plain prompt if skill unavailable
+    run_claude "/ck:plan --fast $description
 
 Reference roadmap:
 $roadmap_content" "opus" "$effort" "$budget"
@@ -147,7 +145,7 @@ run_plan_hard() {
     roadmap_content=$(cat "$ROADMAP")
 
     # Full plan (opus, max effort)
-    run_claude "/plan $description
+    run_claude "/ck:plan $description
 
 Reference roadmap:
 $roadmap_content" "opus" "max" "$budget"
@@ -156,10 +154,8 @@ $roadmap_content" "opus" "max" "$budget"
     local plan_path
     plan_path=$(find_latest_plan)
     if [[ -n "$plan_path" ]]; then
-        local plan_content
-        plan_content=$(cat "$plan_path")
         info "Red-team review of plan..."
-        run_claude "/plan:validate $plan_path" "opus" "high" "1.00"
+        run_claude "/ck:plan red-team $plan_path" "opus" "high" "1.00"
     fi
 }
 
@@ -167,12 +163,18 @@ run_cook() {
     local plan_path
     plan_path=$(find_latest_plan)
     if [[ -z "$plan_path" ]]; then
-        error "No plan found in $PLAN_DIR"
-        return 1
+        # No plan file found — cook directly from roadmap
+        warn "No plan.md found in $PLAN_DIR — cooking from roadmap directly"
+        local roadmap_content
+        roadmap_content=$(cat "$ROADMAP")
+        run_claude "/ck:cook --auto Implement based on this roadmap:
+
+$roadmap_content" "sonnet" "medium" "$BUDGET_PER_PHASE"
+        return $?
     fi
 
     info "Cooking from: $plan_path"
-    run_claude "/code:auto $plan_path" "sonnet" "medium" "$BUDGET_PER_PHASE"
+    run_claude "/ck:cook --auto $plan_path" "sonnet" "medium" "$BUDGET_PER_PHASE"
 }
 
 run_test() {
@@ -188,12 +190,12 @@ run_review() {
 
 run_security() {
     info "Security scan..."
-    run_claude "Run a security review of the codebase. Check for: hardcoded secrets, injection vulnerabilities, auth issues, OWASP Top 10. Report findings." "sonnet" "medium" "1.00" "--allowedTools Read,Grep,Glob,Bash"
+    run_claude "/ck:security-scan Run a security review. Check for hardcoded secrets, injection vulnerabilities, auth issues, OWASP Top 10." "sonnet" "medium" "1.00" "--allowedTools Read,Grep,Glob,Bash"
 }
 
 run_ship() {
     info "Shipping to $SHIP_TARGET..."
-    run_claude "/git:cp Stage, commit, and push all changes." "sonnet" "low" "0.50"
+    run_claude "/git:cm Stage and commit all changes." "sonnet" "low" "0.50"
 }
 
 find_latest_plan() {
