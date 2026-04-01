@@ -1,5 +1,8 @@
 import { Command } from 'commander';
 import { watchCommand } from './commands/watch/watch-command.js';
+import { readCommand } from './cli/slack-reader.js';
+import { brainstormCommand } from './cli/brainstormer.js';
+import { reportCommand } from './cli/report-issue.js';
 
 const program = new Command();
 program
@@ -8,4 +11,7 @@ program
   .version('0.1.0');
 
 program.addCommand(watchCommand);
+program.addCommand(readCommand);
+program.addCommand(brainstormCommand);
+program.addCommand(reportCommand);
 program.parse();

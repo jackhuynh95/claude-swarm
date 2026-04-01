@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "AI-powered GitHub issue automation daemon built on CK watch",
   "type": "module",
+  "bin": {
+    "claude-swarm": "./dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "bun src/commands/watch/watch-command.ts",
