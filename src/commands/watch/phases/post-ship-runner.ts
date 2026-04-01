@@ -4,6 +4,7 @@ import { executeE2e, type E2eConfig } from './e2e-runner.js';
 import { executeDesignReview, type DesignReviewConfig } from './design-reviewer.js';
 import { executeSlackReport, type SlackReporterConfig } from './slack-reporter.js';
 import { executeJournal, type JournalConfig } from './journal-writer.js';
+import { recordRun, type RunRecordConfig } from './run-recorder.js';
 
 export interface PostShipConfig {
   repo: string;
@@ -97,6 +98,10 @@ export async function executePostShip(
     classified, journalConfig, [...flowResults, ...results], verifyResult.verdict,
   );
   results.push(journalResult);
+
+  // 6. Run recorder — pure file write, best-effort, never blocks
+  const runConfig: RunRecordConfig = { vaultPath: config.vaultPath };
+  await recordRun(classified, runConfig, flowResults, results, verifyResult.verdict);
 
   return { results, verdict: verifyResult.verdict, pipelinePassed: true };
 }

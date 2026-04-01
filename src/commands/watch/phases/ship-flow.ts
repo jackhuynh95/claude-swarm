@@ -5,11 +5,13 @@ import { createBranch, commitChanges, createPullRequest } from './branch-manager
 import { createDefaultBudgetGuard } from './budget-guard.js';
 import { createHistory } from './conversation-history.js';
 import { shouldSkipComment } from './comment-guard.js';
+import { loadVaultContext } from './vault-context-loader.js';
 
 export interface ShipFlowConfig {
   repo: string;
   autoMode: boolean;
   noTest: boolean;
+  vaultPath?: string;   // obsidian-vault path for planning context
   cwd?: string;
 }
 
@@ -39,7 +41,10 @@ export async function executeShipFlow(
     return results;
   }
 
-  const planPrompt = buildPlanPrompt(issue);
+  const vaultContext = config.vaultPath
+    ? await loadVaultContext(config.vaultPath, issue)
+    : '';
+  const planPrompt = buildPlanPrompt(issue, vaultContext);
   const planResult = await invokeClaudePhase(
     planPrompt, 'plan', classified.modelOverride, config.autoMode, cwd,
   );
@@ -96,6 +101,10 @@ export async function executeShipFlow(
   return results;
 }
 
-function buildPlanPrompt(issue: { number: number; title: string; body: string | null }): string {
-  return `/plan:fast Implement GitHub issue #${issue.number}:\n\n${issue.title}\n\n${issue.body ?? ''}\n\nCreate implementation plan following project conventions.`;
+function buildPlanPrompt(
+  issue: { number: number; title: string; body: string | null },
+  vaultContext: string,
+): string {
+  const contextSection = vaultContext ? `\n\n${vaultContext}\n` : '';
+  return `/plan:fast Implement GitHub issue #${issue.number}:\n\n${issue.title}\n\n${issue.body ?? ''}${contextSection}\nCreate implementation plan following project conventions.`;
 }

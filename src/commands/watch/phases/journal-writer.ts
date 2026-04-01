@@ -53,45 +53,70 @@ function buildJournalPrompt(
     .flatMap((r) => r.artifacts ?? [])
     .find((a) => a.includes('pull')) ?? 'none';
 
-  const errors = flowResults
+  const failedPhases = flowResults
     .filter((r) => !r.success && r.error)
-    .map((r) => `${r.phase}: ${r.error}`)
-    .join(', ') || 'none';
+    .map((r) => `- ${r.phase}: ${r.error}`);
+  const errorsSection = failedPhases.length > 0 ? failedPhases.join('\n') : 'None';
 
   const phasesSummary = flowResults
-    .map((r) => `${r.phase}(${r.success ? 'ok' : 'fail'})`)
-    .join(', ');
+    .map((r) => `| ${r.phase} | ${r.success ? 'ok' : 'fail'} | ${formatDuration(r.durationMs)} | ${r.error ?? '—'} |`)
+    .join('\n');
 
   return `Write a daily journal entry for the obsidian vault.
 
 Vault path: ${vaultPath}
 Daily file: ${vaultPath}/Daily/${today}.md
 
-Issue: #${issue.number} — ${issue.title} (${issueType})
+## Run Data
+Issue: #${issue.number} — ${issue.title}
+Type: ${issueType}
 Verdict: ${verifyVerdict ?? 'N/A'}
 PR: ${prUrl}
 Duration: ${duration}
-Phases completed: ${phasesSummary}
-Errors: ${errors}
 
-Format the entry as:
-## ${now} — Issue #${issue.number}: ${issue.title}
-- **Type**: ${issueType}
-- **Verdict**: ${verifyVerdict ?? 'N/A'}
-- **PR**: ${prUrl}
-- **Duration**: ${duration}
-- **Summary**: [1-2 sentences on what was done]
-- **Lessons**: [any non-obvious insights, or "none"]
+Phase results:
+| Phase | Status | Duration | Error |
+|-------|--------|----------|-------|
+${phasesSummary}
 
-If the daily file exists, APPEND to it. If not, create with frontmatter:
+Failed phase details:
+${errorsSection}
+
+## Instructions
+
+1. Read ${vaultPath}/Daily/${today}.md if it exists, count the number of existing "## Dev Session" headings (call that N), then append a new section as Dev Session N+1.
+
+2. If the file does NOT exist, create it with this frontmatter first:
 ---
 date: ${today}
 tags: [daily, claude-swarm]
+projects: [claude-swarm]
 ---
 
-If you identify reusable lessons or patterns, also create a note in:
-${vaultPath}/Notes/{descriptive-name}.md
-with [[wikilinks]] back to the daily entry.`;
+3. Append (or write) the following structured section — fill in [brackets] using the run data above:
+
+## Dev Session [N+1] — ${now}
+
+### What Was Done
+- Issue #${issue.number}: ${issue.title} (${issueType})
+- Verdict: ${verifyVerdict ?? 'N/A'}
+- PR: ${prUrl}
+- Duration: ${duration}
+
+### Decisions Made
+[List any architectural or approach decisions inferred from the phases — e.g. model choice, flow branching, retry strategy. If none evident, write "None recorded."]
+
+### Lessons Learned
+[Non-obvious insights from errors, retries, or unexpected phase behavior. Be specific — "X failed because Y" is more useful than "there was an error". If no issues, write "Run clean."]
+
+### Unresolved
+[Items needing follow-up: failed phases, partial verdicts, open questions. If none, write "None."]
+
+4. If you identified a reusable lesson or pattern (something that would help future runs), ALSO create a note:
+   File: ${vaultPath}/Notes/{descriptive-kebab-name}.md
+   Frontmatter: date, tags: [lesson, claude-swarm] (or [pattern, claude-swarm])
+   Body: the lesson/pattern with a [[${today}]] wikilink back to today's daily note.
+   Only create a Notes file if the lesson is genuinely reusable — skip if the run was routine.`;
 }
 
 function formatDate(d: Date): string {
