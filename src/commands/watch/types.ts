@@ -60,6 +60,22 @@ export interface RouteFlags {
   hardMode: boolean;         // "hard" label → opus override
 }
 
+// Per-issue budget limits for unattended runs
+export interface BudgetConfig {
+  maxInvocationsPerIssue: number;  // default: 20
+  maxTokensPerIssue: number;       // default: 500_000
+  enabled: boolean;                // default: true
+}
+
+// Safety feature configuration (paths default to cwd)
+export interface SafetyConfig {
+  budget: BudgetConfig;
+  costTracking: boolean;
+  historyPath?: string;   // default .ck-history.json
+  budgetPath?: string;    // default .ck-budget.json
+  costPath?: string;      // default .ck-costs.json
+}
+
 // Watch daemon config
 export interface WatchConfig {
   repo: string;              // owner/repo
@@ -71,6 +87,7 @@ export interface WatchConfig {
     verified: string;
     error: string;
   };
+  safety?: SafetyConfig;
 }
 
 // Phase execution result

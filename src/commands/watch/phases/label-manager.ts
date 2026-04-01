@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { sanitizeComment } from './comment-sanitizer.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -100,7 +101,7 @@ export async function addComment(
   try {
     await execFileAsync('gh', [
       'issue', 'comment', String(issueNum),
-      '--body', body,
+      '--body', sanitizeComment(body),
       '-R', repo,
     ]);
     return true;

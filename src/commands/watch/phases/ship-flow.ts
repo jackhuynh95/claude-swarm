@@ -2,6 +2,9 @@ import type { ClassifiedIssue, PhaseResult } from '../types.js';
 import { invokeClaudePhase } from './claude-invoker.js';
 import { transitionLabel, addComment } from './label-manager.js';
 import { createBranch, commitChanges, createPullRequest } from './branch-manager.js';
+import { createDefaultBudgetGuard } from './budget-guard.js';
+import { createHistory } from './conversation-history.js';
+import { shouldSkipComment } from './comment-guard.js';
 
 export interface ShipFlowConfig {
   repo: string;
@@ -22,28 +25,49 @@ export async function executeShipFlow(
   const results: PhaseResult[] = [];
   const cwd = config.cwd;
 
+  const budget = createDefaultBudgetGuard(cwd);
+  const history = createHistory(cwd);
+
   // 1. Create feature branch
   const branch = await createBranch(issue, issueType, cwd);
 
-  // 2. Plan phase (opus)
+  // 2. Plan phase (opus) — budget check first
+  const planBudgetCheck = budget.checkBudget(issue.number);
+  if (!planBudgetCheck.allowed) {
+    await addComment(config.repo, issue.number, `Budget exceeded: ${planBudgetCheck.reason}. Stopping ship flow.`);
+    await transitionLabel(config.repo, issue.number, undefined, 'error');
+    return results;
+  }
+
   const planPrompt = buildPlanPrompt(issue);
   const planResult = await invokeClaudePhase(
     planPrompt, 'plan', classified.modelOverride, config.autoMode, cwd,
   );
   results.push(planResult);
+  budget.recordInvocation(issue.number, planResult);
+  history.recordPhaseOutput(issue.number, 'plan', planResult);
 
   if (!planResult.success) {
     await addComment(config.repo, issue.number, `Planning phase failed for #${issue.number}. Error: ${planResult.error ?? 'unknown'}`);
     return results;
   }
 
-  // 3. Implementation phase (sonnet)
+  // 3. Implementation phase (sonnet) — budget check first
+  const cookBudgetCheck = budget.checkBudget(issue.number);
+  if (!cookBudgetCheck.allowed) {
+    await addComment(config.repo, issue.number, `Budget exceeded: ${cookBudgetCheck.reason}. Stopping after plan.`);
+    await transitionLabel(config.repo, issue.number, undefined, 'error');
+    return results;
+  }
+
   const cookFlags = config.noTest ? '--auto --no-test' : '--auto';
   const cookPrompt = `/ck:cook ${cookFlags} Implement GitHub issue #${issue.number}: ${issue.title}\n\n${issue.body ?? ''}`;
   const cookResult = await invokeClaudePhase(
     cookPrompt, 'fix', classified.modelOverride, config.autoMode, cwd,
   );
   results.push(cookResult);
+  budget.recordInvocation(issue.number, cookResult);
+  history.recordPhaseOutput(issue.number, 'fix', cookResult);
 
   // 4. Post-implementation: commit, PR, label transition
   await commitChanges(issue.number, issue.title, issueType, cwd);
@@ -56,7 +80,14 @@ export async function executeShipFlow(
   const summary = prUrl
     ? `Implementation complete. PR: ${prUrl}`
     : `Implementation complete but PR creation failed for #${issue.number}.`;
-  await addComment(config.repo, issue.number, summary);
+
+  // Comment guard: skip if bot already commented last or maintainer closed discussion
+  const guard = await shouldSkipComment(config.repo, issue.number);
+  if (guard.skip) {
+    console.log(`[ship-flow] Skipping summary comment: ${guard.reason}`);
+  } else {
+    await addComment(config.repo, issue.number, summary);
+  }
 
   if (prUrl) {
     results[results.length - 1].artifacts = [prUrl];
