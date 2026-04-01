@@ -213,14 +213,14 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 
 | # | Task | Status |
 |---|---|---|
-| 14 | Create `debug-flow.ts` — /debug → /fix → /test retry loop | Pending |
-| 15 | Create `ship-flow.ts` — /plan:fast → /ck:cook --auto → PR | Pending |
-| 16 | Port Claude CLI subprocess spawning with timeout (SIGTERM → 5s → SIGKILL) | Pending |
-| 17 | Port branch setup + commit + PR creation logic | Pending |
-| 18 | Port label transition logic (ready_for_dev → shipped → verified) | Pending |
-| 19 | Add clarifying phase — Claude asks spec questions, waits for reply | Pending |
+| 14 | Create `debug-flow.ts` — /debug → /fix → /test retry loop | Done |
+| 15 | Create `ship-flow.ts` — /plan:fast → /ck:cook --auto → PR | Done |
+| 16 | Port Claude CLI subprocess spawning with timeout (SIGTERM → 5s → SIGKILL) | Done |
+| 17 | Port branch setup + commit + PR creation logic | Done |
+| 18 | Port label transition logic (ready_for_dev → shipped → verified) | Done |
+| 19 | Add clarifying phase — Claude asks spec questions, waits for reply | Done |
 
-**Milestone**: Debug-flow and ship-flow execute issues end-to-end.
+**Milestone**: Debug-flow and ship-flow execute issues end-to-end. ✓ Complete
 
 ---
 
