@@ -95,9 +95,10 @@ run_claude() {
     # Build flags
     local flags="--model $model --effort $effort --output-format text --max-budget-usd $budget"
 
-    # Permission mode
+    # Permission mode — auto uses dangerously-skip for full automation
+    # (--permission-mode auto still blocks some actions like editing files)
     if [[ "$AUTO_MODE" == "true" ]]; then
-        flags="$flags --permission-mode auto"
+        flags="$flags --dangerously-skip-permissions"
     fi
 
     # Extra flags (e.g., --allowedTools)
@@ -195,7 +196,7 @@ run_security() {
 
 run_ship() {
     info "Shipping to $SHIP_TARGET..."
-    run_claude "/git:cm Stage and commit all changes." "sonnet" "low" "0.50"
+    run_claude "/ck:git cm Stage and commit all changes." "sonnet" "low" "0.50"
 }
 
 find_latest_plan() {
