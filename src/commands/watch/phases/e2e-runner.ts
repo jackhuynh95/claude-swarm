@@ -22,8 +22,24 @@ const FAIL_PATTERN = /fail|error|crash|timeout/i;
 const E2E_RESULT_PATTERN = /E2E_RESULT:\s*(PASS|FAIL)\s*[—\-]\s*(.+)/i;
 
 /**
+ * Parse E2E scenarios from issue body.
+ * Looks for a "## E2E Scenarios" section with bullet points.
+ */
+export function parseE2eScenariosFromBody(body: string | null): string[] {
+  if (!body) return [];
+  const match = body.match(/##\s*E2E\s*Scenarios?\s*\n([\s\S]*?)(?=\n##|\n$|$)/i);
+  if (!match) return [];
+
+  return match[1]
+    .split('\n')
+    .map((line) => line.replace(/^[\s]*[-*]\s*/, '').trim())
+    .filter(Boolean);
+}
+
+/**
  * Agent-browser E2E testing phase.
  * Skips gracefully when no baseUrl configured.
+ * Parses scenarios from issue body if none provided in config.
  * FAIL blocks downstream post-ship pipeline.
  */
 export async function executeE2e(
@@ -41,7 +57,8 @@ export async function executeE2e(
   }
 
   const { issue } = classified;
-  const prompt = buildE2ePrompt(issue, config.baseUrl, config.scenarios);
+  const scenarios = config.scenarios ?? parseE2eScenariosFromBody(issue.body);
+  const prompt = buildE2ePrompt(issue, config.baseUrl, scenarios);
 
   const phaseResult = await invokeClaudePhase(
     prompt, 'e2e', classified.modelOverride, config.autoMode, config.cwd,

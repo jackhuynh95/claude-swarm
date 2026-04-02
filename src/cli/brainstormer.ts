@@ -38,7 +38,12 @@ List 3-5 distinct approaches with pros/cons for each.
 Comparison table or summary of key trade-offs.
 
 ## Recommendation
-The single best solution with rationale.`;
+The single best solution with rationale.
+
+## E2E Scenarios
+List 3-5 bullet points of key user-facing scenarios to verify in browser E2E tests.
+Each scenario should be a concrete user action (e.g. "Login with valid credentials and verify dashboard loads").
+If the topic is purely backend/infra with no UI, write "N/A".`;
 
   console.log(`Brainstorming: "${topic}"...`);
 
