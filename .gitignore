@@ -27,6 +27,9 @@ Thumbs.db
 
 # Claude Code
 .claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/release/
 CLAUDE.md
 AGENTS.md
 
