@@ -166,17 +166,17 @@ claude-swarm build from-scratch "Add wishlist" --dry-run
 
 | # | Task | Status |
 |---|---|---|
-| 15 | Spawn `claude -p "/ck:plan ..."` per issue with proper flags | Pending |
-| 16 | Spawn `claude -p "/ck:cook --auto ..."` per issue | Pending |
-| 17 | Spawn `claude -p "/test ..."` after cook | Pending |
-| 18 | Spawn `claude -p "/ck:git cm ..."` to commit | Pending |
-| 19 | Close GitHub issue on success via `gh issue close` | Pending |
-| 20 | Update epic body checklist when child closes | Pending |
-| 21 | Model routing: opus for plan, sonnet for cook, haiku for report | Pending |
-| 22 | Budget control: `--max-budget-usd` per call | Pending |
-| 23 | Permission mode: `--permission-mode auto` or `--dangerously-skip-permissions` | Pending |
-| 24 | Timeout: kill subprocess after N seconds | Pending |
-| 25 | Resume: skip already-closed issues, continue from where left off | Pending |
+| 15 | Spawn `claude -p "/ck:plan ..."` per issue with proper flags | Done |
+| 16 | Spawn `claude -p "/ck:cook --auto ..."` per issue | Done |
+| 17 | Spawn `claude -p "/test ..."` after cook | Done |
+| 18 | Spawn `claude -p "/ck:git cm ..."` to commit | Done |
+| 19 | Close GitHub issue on success via `gh issue close` | Done |
+| 20 | Update epic body checklist when child closes | Done |
+| 21 | Model routing: opus for plan, sonnet for cook, haiku for report | Done |
+| 22 | Budget control: `--max-budget-usd` per call | Done |
+| 23 | Permission mode: `--permission-mode auto` or `--dangerously-skip-permissions` | Done |
+| 24 | Timeout: kill subprocess after N seconds | Done |
+| 25 | Resume: skip already-closed issues, continue from where left off | Done |
 
 ---
 

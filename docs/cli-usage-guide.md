@@ -293,7 +293,9 @@ claude-swarm build <subcommand> [options]
 | `generate` | Generate a structured roadmap from a topic or @file |
 | `from-scratch` | One-liner: generate roadmap → create issues → execute epics |
 | `init` | (Phase 1 — not yet implemented) Parse roadmap and create GitHub issues |
-| `run` | (Phase 3 — not yet implemented) Execute epics per roadmap phases |
+| `plan` | Plan issues in an epic with `/ck:plan` |
+| `cook` | Implement issues in an epic with `/ck:cook --auto` |
+| `run` | Execute epics per roadmap phases (plan→cook→test→commit) |
 | `status` | (Phase 4 — not yet implemented) Show build pipeline status |
 
 ### generate

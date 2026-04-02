@@ -2,6 +2,13 @@ import { Command } from 'commander';
 import { generateRoadmap } from './roadmap-generator.js';
 import { fromScratch } from './from-scratch-pipeline.js';
 import { parseRoadmap } from './roadmap-parser.js';
+import {
+  executeEpic,
+  executeAllEpics,
+  planEpicIssues,
+  cookEpicIssues,
+  type ExecutorOptions,
+} from './epic-executor.js';
 
 export const buildCommand = new Command('build')
   .description('Generate roadmaps, create issues, and execute implementation pipelines');
@@ -13,7 +20,7 @@ buildCommand
   .option('--epics <n>', 'Number of epics (default: auto)', parseInt)
   .option('--dry-run', 'Print roadmap to stdout without saving', false)
   .option('--output-dir <dir>', 'Output directory (default: docs)', 'docs')
-  .action(async (input: string, opts: { context?: string; epics?: number; dryRun: boolean; outputDir: string }) => {
+  .action(async (input, opts) => {
     const result = await generateRoadmap({
       input,
       context: opts.context,
@@ -34,7 +41,7 @@ buildCommand
   .option('--auto', 'Enable auto mode for all steps', false)
   .option('--budget <n>', 'Max USD budget per step', parseFloat)
   .option('--dry-run', 'Generate roadmap only, skip init and run', false)
-  .action(async (input: string, opts: { context?: string; epics?: number; auto: boolean; budget?: number; dryRun: boolean }) => {
+  .action(async (input, opts) => {
     await fromScratch({
       input,
       context: opts.context,
@@ -49,7 +56,7 @@ buildCommand
   .command('init <roadmap>')
   .description('Parse roadmap and create GitHub hierarchy')
   .option('--dry-run', 'Show parsed structure without creating issues')
-  .action(async (roadmapPath: string, options: { dryRun?: boolean }) => {
+  .action(async (roadmapPath, options) => {
     const filePath = roadmapPath.replace(/^@/, '');
     const parsed = parseRoadmap(filePath);
     if (options.dryRun) {
@@ -62,13 +69,72 @@ buildCommand
 
 buildCommand
   .command('run')
-  .description('Execute epics from roadmap issues (Phase 3 — not yet implemented)')
-  .option('--all', 'Run all epics')
+  .description('Execute plan→cook→test→commit pipeline for epics')
+  .option('--epic <n>', 'Run specific epic by issue number', parseInt)
+  .option('--all', 'Run all open epics (label: epic)')
+  .option('--from <n>', 'Resume from epic number N (with --all)', parseInt)
+  .option('--from-issue <n>', 'Skip child issues < N within an epic', parseInt)
+  .option('--auto', 'Enable auto mode for all claude calls')
+  .option('--budget <n>', 'Max USD per claude call', parseFloat)
+  .option('--permission-mode <mode>', 'Permission mode: auto or skip')
+  .option('--timeout <s>', 'Timeout per step in seconds (default: 600)', parseInt)
+  .option('--dry-run', 'Show what would run without executing')
+  .action(async (opts) => {
+    const executorOpts = {
+      auto:           opts.auto,
+      budget:         opts.budget,
+      permissionMode: opts.permissionMode,
+      timeout:        opts.timeout,
+      dryRun:         opts.dryRun,
+      fromIssue:      opts.fromIssue,
+      fromEpic:       opts.from,
+    };
+    if (opts.all) {
+      await executeAllEpics(executorOpts);
+    } else if (opts.epic != null) {
+      await executeEpic(opts.epic, executorOpts);
+    } else {
+      console.error('Error: specify --epic <n> or --all');
+      process.exit(1);
+    }
+  });
+
+buildCommand
+  .command('plan')
+  .description('Run /ck:plan step for each open issue in an epic')
+  .option('--epic <n>', 'Epic issue number', parseInt)
+  .option('--budget <n>', 'Max USD per claude call', parseFloat)
+  .option('--permission-mode <mode>', 'Permission mode: auto or skip')
+  .option('--timeout <s>', 'Timeout per call in seconds', parseInt)
+  .option('--dry-run', 'Show what would run')
+  .action(async (opts) => {
+    if (opts.epic == null) { console.error('Error: --epic <n> is required'); process.exit(1); }
+    await planEpicIssues(opts.epic, {
+      budget: opts.budget,
+      permissionMode: opts.permissionMode,
+      timeout: opts.timeout,
+      dryRun: opts.dryRun,
+    });
+  });
+
+buildCommand
+  .command('cook')
+  .description('Run /ck:cook step for each open issue in an epic')
+  .option('--epic <n>', 'Epic issue number', parseInt)
   .option('--auto', 'Enable auto mode')
-  .option('--budget <n>', 'Max USD budget', parseFloat)
-  .action(() => {
-    console.log('⚠ Phase 3: Epic Executor — not yet implemented');
-    console.log('  Coming soon: claude-swarm build run --all --auto');
+  .option('--budget <n>', 'Max USD per claude call', parseFloat)
+  .option('--permission-mode <mode>', 'Permission mode: auto or skip')
+  .option('--timeout <s>', 'Timeout per call in seconds', parseInt)
+  .option('--dry-run', 'Show what would run')
+  .action(async (opts) => {
+    if (opts.epic == null) { console.error('Error: --epic <n> is required'); process.exit(1); }
+    await cookEpicIssues(opts.epic, {
+      auto: opts.auto,
+      budget: opts.budget,
+      permissionMode: opts.permissionMode,
+      timeout: opts.timeout,
+      dryRun: opts.dryRun,
+    });
   });
 
 buildCommand
