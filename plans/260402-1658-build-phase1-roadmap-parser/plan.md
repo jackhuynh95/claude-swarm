@@ -1,8 +1,9 @@
 ---
-status: pending
+status: complete
 priority: high
 blockedBy: [260402-1650-build-phase0-roadmap-generator]
 blocks: []
+completedDate: 2026-04-02
 ---
 
 # Phase 1: Roadmap Parser
@@ -19,11 +20,11 @@ Create a markdown parser that reads `implement-roadmap-*.md` files and extracts 
 
 | # | Phase | Status |
 |---|---|---|
-| 1 | Install zod, create types + schema | Pending |
-| 2 | Implement parser core (milestone, epics, issues, subs) | Pending |
-| 3 | Support dual format detection | Pending |
-| 4 | Wire into build-command.ts (init subcommand) | Pending |
-| 5 | Compile check | Pending |
+| 1 | Install zod, create types + schema | Complete |
+| 2 | Implement parser core (milestone, epics, issues, subs) | Complete |
+| 3 | Support dual format detection | Complete |
+| 4 | Wire into build-command.ts (init subcommand) | Complete |
+| 5 | Compile check | Complete |
 
 ## Dependencies
 
