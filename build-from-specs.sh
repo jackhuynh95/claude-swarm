@@ -14,6 +14,7 @@
 #   ./build-from-specs.sh --dry-run           # preview commands
 #
 # Phases:
+#   0 — Roadmap Generator + From-Scratch Pipeline (roadmap-generator.ts)
 #   1 — Roadmap Parser (roadmap-parser.ts)
 #   2 — GitHub Hierarchy Creator (github-hierarchy.ts)
 #   3 — Epic Executor (epic-executor.ts)
@@ -175,6 +176,19 @@ confirm_proceed() {
 # Phase definitions
 # ------------------------------------------------------------------------------
 
+phase_0() {
+    header "Phase 0: Roadmap Generator + From-Scratch Pipeline"
+
+    run_plan "Implement Phase 0 (Roadmap Generator and From-Scratch Pipeline) for claude-swarm build command. Create src/commands/build/roadmap-generator.ts. Tasks: accept topic string or @file as input, spawn Claude opus high effort to brainstorm scope and structure, output roadmap markdown with milestone and epics and issues and sub-issues following implement-roadmap format (headings plus tables plus status columns), write to docs/implement-roadmap-slug.md, support --context @file for additional background like Obsidian notes, support --epics N to control epic count, support dry-run mode. Then implement from-scratch subcommand that chains generate then init then run, passes --auto and --budget through, shows progress at each stage."
+
+    confirm_proceed 1
+    run_cook
+    run_test
+    run_ship
+
+    success "Phase 0 complete"
+}
+
 phase_1() {
     header "Phase 1: Roadmap Parser"
 
@@ -270,12 +284,13 @@ main() {
     # Single phase
     if [[ -n "$SINGLE_PHASE" ]]; then
         case "$SINGLE_PHASE" in
+            0) phase_0 ;;
             1) phase_1 ;;
             2) phase_2 ;;
             3) phase_3 ;;
             4) phase_4 ;;
             5) phase_5 ;;
-            *) error "Unknown phase: $SINGLE_PHASE (valid: 1-5)"; exit 1 ;;
+            *) error "Unknown phase: $SINGLE_PHASE (valid: 0-5)"; exit 1 ;;
         esac
 
         local elapsed=$(( $(date +%s) - start_time ))
@@ -285,11 +300,11 @@ main() {
     fi
 
     # Sequential
-    local start=1
+    local start=0
     [[ -n "$FROM_PHASE" ]] && start="$FROM_PHASE"
 
-    local phases=(phase_1 phase_2 phase_3 phase_4 phase_5)
-    local nums=(1 2 3 4 5)
+    local phases=(phase_0 phase_1 phase_2 phase_3 phase_4 phase_5)
+    local nums=(0 1 2 3 4 5)
 
     for i in "${!phases[@]}"; do
         if [[ "${nums[$i]}" -ge "$start" ]]; then

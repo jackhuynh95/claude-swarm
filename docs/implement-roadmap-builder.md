@@ -9,16 +9,29 @@
 ## What It Does
 
 ```
-Human writes spec (Obsidian, markdown, etc.)
+Human idea / spec / Obsidian note
      │
      ▼
-claude-swarm build init @roadmap.md
+claude-swarm build generate "Add payment gateway"
+     │ Claude brainstorms → creates roadmap.md
+     │ with milestone, epics, issues, sub-issues
+     ▼
+docs/implement-roadmap-payment-gateway.md
+     │
+     ▼
+claude-swarm build init @docs/implement-roadmap-payment-gateway.md
      │ parse markdown → create milestone → epics → issues
      ▼
 claude-swarm build run --epic 1 --auto
      │ plan → cook → test → ship (per issue)
      ▼
 PRs created. Issues closed. Vault journaled.
+
+Or one-liner:
+claude-swarm build from-scratch "Add payment gateway" --auto --budget 20
+     │ = generate + init + run all in one shot
+     ▼
+Done.
 ```
 
 ---
@@ -28,10 +41,63 @@ PRs created. Issues closed. Vault journaled.
 ```
 src/commands/build/
 ├── build-command.ts        ← CLI entry: subcommand router
+├── roadmap-generator.ts    ← Brainstorm → generate roadmap markdown
 ├── roadmap-parser.ts       ← Parse markdown → milestone, epics, issues
 ├── github-hierarchy.ts     ← Create milestone, epics, issues via gh API
 ├── epic-executor.ts        ← Plan → cook → test → ship per epic
 └── build-status.ts         ← Show progress: milestone → epic → issue
+```
+
+---
+
+## Phase 0 — Roadmap Generator
+
+**Goal**: Generate a structured roadmap from a human idea/spec via Claude.
+
+| # | Task | Status |
+|---|---|---|
+| 0a | Accept topic string or @file as input | Pending |
+| 0b | Spawn Claude (opus, high effort) to brainstorm scope | Pending |
+| 0c | Structure output as roadmap markdown: milestone + epics + issues + sub-issues | Pending |
+| 0d | Follow implement-roadmap format (headings + tables + status columns) | Pending |
+| 0e | Write to `docs/implement-roadmap-{slug}.md` | Pending |
+| 0f | Support `--context @file` for additional background (Obsidian notes, specs) | Pending |
+| 0g | Support `--epics N` to control number of epics (default: auto) | Pending |
+| 0h | Dry-run mode: show generated roadmap without saving | Pending |
+
+**Input**: Topic string or file
+```bash
+claude-swarm build generate "Add payment gateway"
+claude-swarm build generate "Add payment gateway" --context @docs/payment-notes.md
+claude-swarm build generate @obsidian-vault/Notes/payment-research.md --epics 3
+```
+
+**Output**: `docs/implement-roadmap-add-payment-gateway.md` in standard format
+
+---
+
+## Phase 0b — From-Scratch Pipeline
+
+**Goal**: One command to go from idea to shipped code.
+
+| # | Task | Status |
+|---|---|---|
+| 0i | Implement `from-scratch` subcommand that chains: generate → init → run | Pending |
+| 0j | Accept topic string or @file | Pending |
+| 0k | Pass --auto and --budget through to all steps | Pending |
+| 0l | Show progress: "Generating roadmap..." → "Creating issues..." → "Cooking epic 1/N..." | Pending |
+| 0m | Support --dry-run (generate only, don't init or run) | Pending |
+
+**Usage**:
+```bash
+# Full pipeline: idea → roadmap → GitHub issues → implemented → PRs
+claude-swarm build from-scratch "Add payment gateway" --auto --budget 20
+
+# With context
+claude-swarm build from-scratch @spec.md --auto --budget 20 --context @notes.md
+
+# Dry-run: generate roadmap only
+claude-swarm build from-scratch "Add wishlist" --dry-run
 ```
 
 ---
@@ -150,6 +216,15 @@ src/commands/build/
 ## CLI Reference
 
 ```bash
+# Generate roadmap from idea
+claude-swarm build generate "Add payment gateway"
+claude-swarm build generate "Add payment gateway" --context @notes.md
+claude-swarm build generate @obsidian-vault/Notes/spec.md --epics 3
+
+# One-liner: idea → roadmap → issues → implemented → PRs
+claude-swarm build from-scratch "Add payment gateway" --auto --budget 20
+claude-swarm build from-scratch @spec.md --auto --budget 20
+
 # Parse roadmap and create GitHub hierarchy
 claude-swarm build init @docs/roadmap.md
 claude-swarm build init @docs/roadmap.md --dry-run
@@ -179,9 +254,11 @@ claude-swarm build status
 
 | Phase | What | Files | Tasks |
 |---|---|---|---|
+| 0 | Roadmap Generator | `roadmap-generator.ts` | 8 |
+| 0b | From-Scratch Pipeline | (wired in `build-command.ts`) | 5 |
 | 1 | Roadmap Parser | `roadmap-parser.ts` | 6 |
 | 2 | GitHub Hierarchy | `github-hierarchy.ts` | 8 |
 | 3 | Epic Executor | `epic-executor.ts` | 11 |
 | 4 | Build Status | `build-status.ts` | 5 |
 | 5 | CLI Wiring | `build-command.ts` | 10 |
-| **Total** | | **5 files** | **40 tasks** |
+| **Total** | | **6 files** | **53 tasks** |
