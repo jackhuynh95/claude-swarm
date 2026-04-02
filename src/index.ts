@@ -10,7 +10,7 @@ const program = new Command();
 program
   .name('claude-swarm')
   .description('AI-powered GitHub issue automation daemon')
-  .version('0.3.0');
+  .version('0.4.0');
 
 program.addCommand(watchCommand);
 program.addCommand(readCommand);
