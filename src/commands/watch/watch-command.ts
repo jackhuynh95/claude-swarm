@@ -1,10 +1,210 @@
 import { Command } from 'commander';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import type { GHIssue, PhaseResult, WatchConfig } from './types.js';
+import { classifyIssue } from './phases/issue-router.js';
+import { executeDebugFlow } from './phases/debug-flow.js';
+import { executeShipFlow } from './phases/ship-flow.js';
+import { executePostShip } from './phases/post-ship-runner.js';
+import { executeClarifyPhase } from './phases/clarifier.js';
+import { transitionLabel, addComment } from './phases/label-manager.js';
+
+const execFileAsync = promisify(execFile);
+
+/** Track processed issues per hour for rate limiting */
+const hourlyProcessed: number[] = [];
 
 export const watchCommand = new Command('watch')
   .description('Watch GitHub issues and dispatch to execution flows')
-  .option('--repo <repo>', 'GitHub repository (owner/repo)')
+  .requiredOption('--repo <repo>', 'GitHub repository (owner/repo)')
   .option('--interval <ms>', 'Poll interval in milliseconds', '60000')
-  .action((_options) => {
-    console.log('CK watch daemon starting...');
-    // TODO: implement watch loop in Phase 2
+  .option('--max-per-hour <n>', 'Max issues processed per hour', '10')
+  .option('--auto', 'Enable dangerously-skip-permissions mode', false)
+  .option('--vault <path>', 'Obsidian vault path for journaling')
+  .option('--base-url <url>', 'Base URL for E2E tests')
+  .option('--red-team', 'Enable adversarial red-team verification', false)
+  .option('--use-team', 'Use /ck:team for parallel agent execution', false)
+  .option('--dry-run', 'Fetch and classify issues without executing flows', false)
+  .action(async (options) => {
+    const config: WatchConfig = {
+      repo: options.repo,
+      intervalMs: parseInt(options.interval, 10),
+      maxPerHour: parseInt(options.maxPerHour, 10),
+      labels: {
+        trigger: 'ready_for_dev',
+        shipped: 'shipped',
+        verified: 'verified',
+        error: 'error',
+      },
+    };
+
+    console.log(`[watch] Starting daemon — repo=${config.repo} interval=${config.intervalMs}ms max=${config.maxPerHour}/hr`);
+    if (options.dryRun) console.log('[watch] DRY RUN — will classify but not execute');
+
+    // Run first poll immediately, then on interval
+    await pollAndDispatch(config, options);
+    setInterval(() => pollAndDispatch(config, options), config.intervalMs);
   });
+
+/**
+ * Single poll cycle: fetch trigger-labeled issues, classify, dispatch.
+ */
+async function pollAndDispatch(
+  config: WatchConfig,
+  options: { auto: boolean; vault?: string; baseUrl?: string; redTeam: boolean; useTeam: boolean; dryRun: boolean },
+): Promise<void> {
+  try {
+    const issues = await fetchTriggerIssues(config.repo, config.labels.trigger);
+    if (issues.length === 0) return;
+
+    console.log(`[watch] Found ${issues.length} issue(s) with "${config.labels.trigger}" label`);
+
+    for (const issue of issues) {
+      // Rate limit check
+      if (!checkRateLimit(config.maxPerHour)) {
+        console.log(`[watch] Rate limit reached (${config.maxPerHour}/hr). Skipping remaining issues.`);
+        break;
+      }
+
+      await processIssue(issue, config, options);
+    }
+  } catch (err) {
+    console.error(`[watch] Poll error:`, err instanceof Error ? err.message : err);
+  }
+}
+
+/**
+ * Process a single issue through the full pipeline.
+ */
+async function processIssue(
+  issue: GHIssue,
+  config: WatchConfig,
+  options: { auto: boolean; vault?: string; baseUrl?: string; redTeam: boolean; useTeam: boolean; dryRun: boolean },
+): Promise<void> {
+  const classified = classifyIssue(issue);
+  console.log(`[watch] #${issue.number} "${issue.title}" → ${classified.flowType} (${classified.issueType})`);
+
+  if (options.dryRun) return;
+
+  recordProcessed();
+
+  try {
+    // 1. Clarify phase — check if issue spec is clear enough
+    const clarifyResult = await executeClarifyPhase(classified, {
+      repo: config.repo,
+      autoMode: options.auto,
+    });
+
+    if (!clarifyResult.ready) {
+      console.log(`[watch] #${issue.number} needs clarification — pausing until human replies`);
+      return;
+    }
+
+    // 2. Main flow: debug-flow (bugs) or ship-flow (features/docs/chore)
+    let flowResults: PhaseResult[];
+    let branch: string | undefined;
+
+    if (classified.flowType === 'debug-flow') {
+      flowResults = await executeDebugFlow(classified, {
+        repo: config.repo,
+        maxCycles: 3,
+        autoMode: options.auto,
+      });
+    } else {
+      flowResults = await executeShipFlow(classified, {
+        repo: config.repo,
+        autoMode: options.auto,
+        noTest: classified.noTest,
+        vaultPath: options.vault,
+        useTeam: options.useTeam,
+      });
+    }
+
+    // Extract branch name from artifacts (PR URL contains branch info)
+    branch = extractBranchFromResults(flowResults) ?? `issue-${issue.number}`;
+
+    // 3. Post-ship phases (verify, e2e, design review, slack, journal)
+    if (options.vault) {
+      const postShipResult = await executePostShip(classified, {
+        repo: config.repo,
+        autoMode: options.auto,
+        branch,
+        baseUrl: options.baseUrl,
+        vaultPath: options.vault,
+        redTeam: options.redTeam,
+      }, flowResults);
+
+      const allPhases = [...flowResults, ...postShipResult.results];
+      const failCount = allPhases.filter(r => !r.success).length;
+      console.log(`[watch] #${issue.number} complete — verdict=${postShipResult.verdict} phases=${allPhases.length} failures=${failCount}`);
+    } else {
+      const failCount = flowResults.filter(r => !r.success).length;
+      console.log(`[watch] #${issue.number} flow complete — phases=${flowResults.length} failures=${failCount}`);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[watch] #${issue.number} error: ${msg}`);
+    await transitionLabel(config.repo, issue.number, undefined, 'error');
+    await addComment(config.repo, issue.number, `Watch daemon error: ${msg}`);
+  }
+}
+
+/**
+ * Fetch open issues with the trigger label via gh CLI.
+ */
+async function fetchTriggerIssues(repo: string, triggerLabel: string): Promise<GHIssue[]> {
+  const { stdout } = await execFileAsync('gh', [
+    'issue', 'list',
+    '--label', triggerLabel,
+    '--state', 'open',
+    '--json', 'number,title,body,labels,state,assignee,url,createdAt,updatedAt',
+    '--limit', '20',
+    '-R', repo,
+  ]);
+
+  const raw = JSON.parse(stdout) as Array<Record<string, unknown>>;
+
+  return raw.map((r) => ({
+    number: r.number as number,
+    title: r.title as string,
+    body: (r.body as string) ?? null,
+    labels: (r.labels as Array<{ name: string }>) ?? [],
+    state: 'open' as const,
+    assignee: r.assignee as GHIssue['assignee'],
+    html_url: r.url as string,
+    created_at: r.createdAt as string,
+    updated_at: r.updatedAt as string,
+  }));
+}
+
+/**
+ * Rate limiting: allow max N issues per rolling hour window.
+ */
+function checkRateLimit(maxPerHour: number): boolean {
+  const oneHourAgo = Date.now() - 3_600_000;
+  // Prune old entries
+  while (hourlyProcessed.length > 0 && hourlyProcessed[0] < oneHourAgo) {
+    hourlyProcessed.shift();
+  }
+  return hourlyProcessed.length < maxPerHour;
+}
+
+function recordProcessed(): void {
+  hourlyProcessed.push(Date.now());
+}
+
+/**
+ * Try to extract branch name from PR URLs in phase results.
+ */
+function extractBranchFromResults(results: PhaseResult[]): string | undefined {
+  for (const r of results) {
+    if (r.artifacts) {
+      for (const a of r.artifacts) {
+        // PR URLs don't contain branch name directly, but issue number is in the branch
+        const match = a.match(/\/pull\/(\d+)/);
+        if (match) return undefined; // let caller use fallback
+      }
+    }
+  }
+  return undefined;
+}
