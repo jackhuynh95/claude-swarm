@@ -5,6 +5,7 @@ import { executeDesignReview, type DesignReviewConfig } from './design-reviewer.
 import { executeSlackReport, type SlackReporterConfig } from './slack-reporter.js';
 import { executeJournal, type JournalConfig } from './journal-writer.js';
 import { recordRun, type RunRecordConfig } from './run-recorder.js';
+import { invokeClaudePhase } from './claude-invoker.js';
 
 export interface PostShipConfig {
   repo: string;
@@ -14,6 +15,7 @@ export interface PostShipConfig {
   e2eScenarios?: string[];
   vaultPath: string;          // obsidian-vault path
   cwd?: string;
+  redTeam?: boolean;          // enable adversarial red-team verification
 }
 
 export interface PostShipResult {
@@ -41,9 +43,10 @@ export async function executePostShip(
     autoMode: config.autoMode,
     branch: config.branch,
     cwd: config.cwd,
+    redTeam: config.redTeam,
   };
 
-  // 1. Verify — FAIL stops pipeline
+  // 1. Verify (with optional red-team pass) — FAIL stops pipeline
   const verifyResult = await executeVerify(classified, verifierConfig);
   results.push(verifyResult.phaseResult);
 
@@ -51,7 +54,16 @@ export async function executePostShip(
     return { results, verdict: 'FAIL', pipelinePassed: false };
   }
 
-  // 2. E2E — FAIL stops pipeline (skips if no baseUrl)
+  // 2. Security scan — runs when issue has "security" label, advisory only
+  if (classified.flags.securityScan) {
+    const secPrompt = `/ck:security-scan --full Run OWASP security audit on changes for #${classified.issue.number}: ${classified.issue.title}`;
+    const secResult = await invokeClaudePhase(
+      secPrompt, 'security', classified.modelOverride, config.autoMode, config.cwd,
+    );
+    results.push(secResult);
+  }
+
+  // 3. E2E — FAIL stops pipeline (skips if no baseUrl)
   const e2eConfig: E2eConfig = {
     repo: config.repo,
     autoMode: config.autoMode,
@@ -67,7 +79,7 @@ export async function executePostShip(
     return { results, verdict: verifyResult.verdict, pipelinePassed: false };
   }
 
-  // 3. Design review — advisory only, never blocks
+  // 4. Design review — advisory only, never blocks
   const designConfig: DesignReviewConfig = {
     repo: config.repo,
     autoMode: config.autoMode,
@@ -76,7 +88,7 @@ export async function executePostShip(
   const designResult = await executeDesignReview(classified, designConfig);
   results.push(designResult.phaseResult);
 
-  // 4. Slack report — best-effort, never blocks
+  // 5. Slack report — best-effort, never blocks
   const slackConfig: SlackReporterConfig = {
     repo: config.repo,
     autoMode: config.autoMode,
@@ -87,7 +99,7 @@ export async function executePostShip(
   );
   results.push(slackResult);
 
-  // 5. Journal — always runs last, never blocks
+  // 6. Journal — always runs last, never blocks
   const journalConfig: JournalConfig = {
     repo: config.repo,
     autoMode: config.autoMode,
@@ -99,7 +111,14 @@ export async function executePostShip(
   );
   results.push(journalResult);
 
-  // 6. Run recorder — pure file write, best-effort, never blocks
+  // 7. AI-native docs generation — best-effort, never blocks
+  const llmsPrompt = `/ck:llms Generate llms.txt for AI-native codebase comprehension after shipping #${classified.issue.number}`;
+  const llmsResult = await invokeClaudePhase(
+    llmsPrompt, 'docs', classified.modelOverride, config.autoMode, config.cwd,
+  );
+  results.push(llmsResult);
+
+  // 8. Run recorder — pure file write, best-effort, never blocks
   const runConfig: RunRecordConfig = { vaultPath: config.vaultPath };
   await recordRun(classified, runConfig, flowResults, results, verifyResult.verdict);
 

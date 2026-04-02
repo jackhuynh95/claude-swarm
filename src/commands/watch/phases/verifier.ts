@@ -7,6 +7,7 @@ export interface VerifierConfig {
   autoMode: boolean;
   branch: string;  // feature branch to verify
   cwd?: string;
+  redTeam?: boolean;  // enable adversarial red-team review pass
 }
 
 export type VerifyVerdict = 'PASS' | 'FAIL' | 'PARTIAL';
@@ -19,20 +20,41 @@ export interface VerifyResult {
 
 /**
  * Independent verify agent — reviews diff against issue requirements.
- * Returns PASS/FAIL/PARTIAL verdict. FAIL blocks downstream post-ship phases.
+ * When redTeam enabled, runs two passes:
+ *   Pass 1: standard quality review
+ *   Pass 2: adversarial red-team review (think like attackers)
+ * Combined verdict: worst of both passes.
+ * FAIL blocks downstream post-ship phases.
  */
 export async function executeVerify(
   classified: ClassifiedIssue,
   config: VerifierConfig,
 ): Promise<VerifyResult> {
   const { issue } = classified;
-  const prompt = buildVerifyPrompt(issue);
 
-  const phaseResult = await invokeClaudePhase(
-    prompt, 'verify', classified.modelOverride, config.autoMode, config.cwd,
+  // Pass 1: Standard quality review
+  const standardPrompt = buildVerifyPrompt(issue);
+  const standardResult = await invokeClaudePhase(
+    standardPrompt, 'verify', classified.modelOverride, config.autoMode, config.cwd,
   );
+  const standard = parseVerdict(standardResult.output ?? '');
 
-  const { verdict, reasoning } = parseVerdict(phaseResult.output ?? '');
+  // Pass 2: Red-team adversarial review (when enabled)
+  let redTeam = { verdict: standard.verdict, reasoning: '' };
+  let redTeamResult = standardResult;
+  if (config.redTeam) {
+    const redTeamPrompt = buildRedTeamPrompt(issue);
+    redTeamResult = await invokeClaudePhase(
+      redTeamPrompt, 'plan_redteam', classified.modelOverride, config.autoMode, config.cwd,
+    );
+    redTeam = parseVerdict(redTeamResult.output ?? '');
+  }
+
+  // Combined verdict: worst of both passes
+  const verdict = worstVerdict(standard.verdict, redTeam.verdict);
+  const reasoning = config.redTeam
+    ? `**Standard:** ${standard.reasoning}\n**Red-team:** ${redTeam.reasoning}`
+    : standard.reasoning;
 
   const comment = buildVerdictComment(verdict, reasoning, issue.number);
   await addComment(config.repo, issue.number, comment);
@@ -43,6 +65,8 @@ export async function executeVerify(
     await transitionLabel(config.repo, issue.number, 'shipped', 'needs_refix');
   }
 
+  // Return the last phase result for pipeline tracking
+  const phaseResult = config.redTeam ? redTeamResult : standardResult;
   return { verdict, reasoning, phaseResult };
 }
 
@@ -75,6 +99,35 @@ function parseVerdict(output: string): { verdict: VerifyVerdict; reasoning: stri
   }
   // Default to PARTIAL on parse failure — don't block pipeline on ambiguous output
   return { verdict: 'PARTIAL', reasoning: 'Could not parse verdict from output' };
+}
+
+function buildRedTeamPrompt(issue: { number: number; title: string; body: string | null }): string {
+  return `You are a RED TEAM security reviewer. Your job is to find problems.
+
+Issue #${issue.number}: ${issue.title}
+Requirements: ${issue.body ?? 'No description provided'}
+
+Run \`git diff main...HEAD\` to see changes.
+
+Think like an attacker. Look for:
+1. Security vulnerabilities (injection, auth bypass, data leaks)
+2. Edge cases that could cause crashes or data corruption
+3. Missing input validation at system boundaries
+4. Race conditions or state inconsistencies
+5. Assumptions that could break under load or adversarial input
+
+Reply with EXACTLY one of:
+VERDICT: PASS — [no critical issues found]
+VERDICT: PARTIAL — [concerns that should be addressed]
+VERDICT: FAIL — [critical security or correctness issues]`;
+}
+
+/**
+ * Return the worst verdict: FAIL > PARTIAL > PASS.
+ */
+function worstVerdict(a: VerifyVerdict, b: VerifyVerdict): VerifyVerdict {
+  const rank: Record<VerifyVerdict, number> = { PASS: 0, PARTIAL: 1, FAIL: 2 };
+  return rank[a] >= rank[b] ? a : b;
 }
 
 function buildVerdictComment(verdict: VerifyVerdict, reasoning: string, issueNum: number): string {

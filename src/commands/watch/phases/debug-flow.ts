@@ -103,6 +103,21 @@ export async function executeDebugFlow(
       testPassed = true;
       break;
     }
+
+    // When stuck after half the cycles, invoke /ck:problem-solving for fresh approach
+    if (cycle === Math.floor(config.maxCycles / 2)) {
+      const problemSolveCheck = budget.checkBudget(issue.number);
+      if (problemSolveCheck.allowed) {
+        const psPrompt = `/ck:problem-solving when-stuck Stuck debugging #${issue.number}: ${issue.title}. ` +
+          `${config.maxCycles - cycle} retries left. Last test output:\n${testResult.output ?? '(none)'}`;
+        const psResult = await invokeClaudePhase(
+          psPrompt, 'debug', classified.modelOverride, config.autoMode, cwd,
+        );
+        results.push(psResult);
+        budget.recordInvocation(issue.number, psResult);
+        history.recordPhaseOutput(issue.number, 'debug', psResult);
+      }
+    }
   }
 
   // 3. Post-loop: commit, PR, label transition
