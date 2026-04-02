@@ -52,6 +52,7 @@ Create `.claude-swarm.json` in your project root for persistent defaults:
 | `brainstorm` | Brainstorm solutions and optionally create GitHub issues |
 | `report` | Send Slack report for a GitHub issue |
 | `status` | Operator dashboard: tasks, history, cost, capabilities |
+| `build` | Generate roadmaps, create issues, and execute implementation pipelines |
 
 ---
 
@@ -273,6 +274,99 @@ claude-swarm report [options]
 ```bash
 claude-swarm report --repo myorg/myapp --issue 42
 claude-swarm report --repo myorg/myapp --issue 42 --channel "#releases"
+```
+
+---
+
+## build
+
+Generate roadmaps, create GitHub issues, and execute implementation pipelines from human-written requirements.
+
+```bash
+claude-swarm build <subcommand> [options]
+```
+
+### Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| `generate` | Generate a structured roadmap from a topic or @file |
+| `from-scratch` | One-liner: generate roadmap → create issues → execute epics |
+| `init` | (Phase 1 — not yet implemented) Parse roadmap and create GitHub issues |
+| `run` | (Phase 3 — not yet implemented) Execute epics per roadmap phases |
+| `status` | (Phase 4 — not yet implemented) Show build pipeline status |
+
+### generate
+
+Create a structured implementation roadmap from a topic.
+
+```bash
+claude-swarm build generate <input> [options]
+```
+
+**Options**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `<input>` | **Required.** Topic string or `@filepath` for file input | — |
+| `--context <file>` | Additional context file (`@path`) for background | — |
+| `--epics <n>` | Hint: number of epics to organize into | auto |
+| `--output-dir <dir>` | Output directory for roadmap markdown | `docs` |
+| `--dry-run` | Print roadmap to stdout without saving | `false` |
+
+**Examples**
+
+```bash
+# Generate roadmap from topic string
+claude-swarm build generate "Add payment gateway integration"
+
+# Generate from file input
+claude-swarm build generate "@docs/feature-request.md"
+
+# With context and epic count hint
+claude-swarm build generate "OAuth2 authentication" \
+  --context @docs/security-standards.md \
+  --epics 4
+
+# Dry run — see output before saving
+claude-swarm build generate "Database migration" --dry-run
+```
+
+### from-scratch
+
+One-liner pipeline: generates roadmap, creates GitHub issues, and executes implementation epics.
+
+```bash
+claude-swarm build from-scratch <input> [options]
+```
+
+**Options**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `<input>` | **Required.** Topic string or `@filepath` for file input | — |
+| `--context <file>` | Additional context file (`@path`) for background | — |
+| `--epics <n>` | Hint: number of epics to organize into | auto |
+| `--auto` | Enable auto mode for all steps (unattended execution) | `false` |
+| `--budget <n>` | Max USD budget per step (future use) | — |
+| `--dry-run` | Generate roadmap only, skip init and run | `false` |
+
+**Examples**
+
+```bash
+# Generate and preview (dry run)
+claude-swarm build from-scratch "Add Stripe payments" --dry-run
+
+# Full auto pipeline with budget limit
+claude-swarm build from-scratch "Implement user profiles" \
+  --auto \
+  --budget 50 \
+  --context @docs/db-schema.md
+
+# Manual multi-step (recommended for large features)
+claude-swarm build from-scratch "Admin dashboard" --dry-run
+# Review roadmap at docs/implement-roadmap-admin-dashboard.md
+# Then run: claude-swarm build init @docs/implement-roadmap-admin-dashboard.md
 ```
 
 ---
