@@ -296,7 +296,7 @@ claude-swarm build <subcommand> [options]
 | `plan` | Plan issues in an epic with `/ck:plan` |
 | `cook` | Implement issues in an epic with `/ck:cook --auto` |
 | `run` | Execute epics per roadmap phases (plan→cook→test→commit) |
-| `status` | (Phase 4 — not yet implemented) Show build pipeline status |
+| `status` | Show build progress across milestone/epic/issue hierarchy |
 
 ### generate
 
@@ -369,6 +369,53 @@ claude-swarm build from-scratch "Implement user profiles" \
 claude-swarm build from-scratch "Admin dashboard" --dry-run
 # Review roadmap at docs/implement-roadmap-admin-dashboard.md
 # Then run: claude-swarm build init @docs/implement-roadmap-admin-dashboard.md
+```
+
+### status
+
+Show build progress across milestone → epic → issue hierarchy.
+
+```bash
+claude-swarm build status [options]
+```
+
+**Options**
+
+| Flag | Description |
+|------|-------------|
+| `--milestone <name>` | Filter by milestone name (default: most recent open) |
+
+**Output**
+
+Terminal dashboard with:
+- Milestone header with overall progress bar (closed/total issues)
+- Per-epic progress bars (closed/total children)
+- Cost summary from `.ck-costs.json` (silently skipped if absent)
+
+**Example**
+
+```
+╔══════════════════════════════════════════════════╗
+║  Milestone: v2.1 — Add Payment Gateway          ║
+║  ████████████░░░░░░░░ 12/20 (60%)               ║
+╚══════════════════════════════════════════════════╝
+
+  Epic #1: Database Schema
+    ██████████████████░░ 9/10 (90%)
+
+  Epic #2: API Endpoints
+    ████████░░░░░░░░░░░░ 2/5 (40%)
+
+💰 Cost (today): $2.45 across 8 runs
+   Top: #42 ($0.89), #43 ($0.67)
+```
+
+```bash
+# Show most recent open milestone
+claude-swarm build status
+
+# Filter by specific milestone
+claude-swarm build status --milestone "v2.1"
 ```
 
 ---

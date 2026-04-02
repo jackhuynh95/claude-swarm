@@ -9,6 +9,7 @@ import {
   cookEpicIssues,
   type ExecutorOptions,
 } from './epic-executor.js';
+import { showBuildStatus } from './build-status.js';
 
 export const buildCommand = new Command('build')
   .description('Generate roadmaps, create issues, and execute implementation pipelines');
@@ -35,7 +36,7 @@ buildCommand
 
 buildCommand
   .command('from-scratch <input>')
-  .description('One-liner: generate roadmap → create issues → execute epics')
+  .description('One-liner: generate roadmap -> create issues -> execute epics')
   .option('--context <file>', 'Additional context file (@path)')
   .option('--epics <n>', 'Number of epics', parseInt)
   .option('--auto', 'Enable auto mode for all steps', false)
@@ -69,7 +70,7 @@ buildCommand
 
 buildCommand
   .command('run')
-  .description('Execute plan→cook→test→commit pipeline for epics')
+  .description('Execute plan->cook->test->commit pipeline for epics')
   .option('--epic <n>', 'Run specific epic by issue number', parseInt)
   .option('--all', 'Run all open epics (label: epic)')
   .option('--from <n>', 'Resume from epic number N (with --all)', parseInt)
@@ -139,7 +140,8 @@ buildCommand
 
 buildCommand
   .command('status')
-  .description('Show build pipeline status (Phase 4 — not yet implemented)')
-  .action(() => {
-    console.log('⚠ Phase 4: Build Status — not yet implemented');
+  .description('Show build progress across milestone/epic/issue hierarchy')
+  .option('--milestone <name>', 'Filter by milestone name')
+  .action(async (opts) => {
+    await showBuildStatus(opts);
   });
