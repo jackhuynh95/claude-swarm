@@ -30,6 +30,7 @@ Thumbs.db
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/release/
+.claude/skills/.env*
 CLAUDE.md
 AGENTS.md
 
