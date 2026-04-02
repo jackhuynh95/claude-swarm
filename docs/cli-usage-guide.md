@@ -1,8 +1,47 @@
 # claude-swarm CLI Usage Guide
 
+## Installation
+
+```bash
+# Configure GitHub Packages registry
+echo "@jackhuynh95:registry=https://npm.pkg.github.com" >> .npmrc
+
+# Install globally
+npm install -g @jackhuynh95/claude-swarm
+
+# Or run directly via npx
+npx @jackhuynh95/claude-swarm watch --dry-run
 ```
-claude-swarm <command> [options]
+
+## Usage
+
+```bash
+# Run from any project root — repo auto-detected from git remote
+cd ~/my-project
+claude-swarm watch --auto
+
+# Or specify repo explicitly
+claude-swarm watch --repo owner/repo --auto
 ```
+
+## Project Config (`.claude-swarm.json`)
+
+Create `.claude-swarm.json` in your project root for persistent defaults:
+
+```json
+{
+  "repo": "myorg/myapp",
+  "vault": "../second-brain",
+  "baseUrl": "http://localhost:3000",
+  "interval": 60000,
+  "maxPerHour": 10,
+  "redTeam": true
+}
+```
+
+**Resolution priority:** CLI flag > `.claude-swarm.json` > git remote auto-detect.
+
+---
 
 ## Commands
 
@@ -28,7 +67,7 @@ claude-swarm watch [options]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--repo <owner/repo>` | **Required.** Target GitHub repository | — |
+| `--repo <owner/repo>` | GitHub repository — auto-detected from git remote or `.claude-swarm.json` | — |
 | `--interval <ms>` | Poll interval in milliseconds (daemon mode) | `60000` |
 | `--max-per-hour <n>` | Rate limit — max issues processed per hour | `10` |
 | `--auto` | Enable `--dangerously-skip-permissions` (unattended) | `false` |
@@ -113,21 +152,23 @@ These are automatically extracted and passed to the `agent-browser` E2E test run
 ### Examples
 
 ```bash
-# Basic daemon — poll every 60s
+# Auto-detect repo from git remote — just run from project root
+claude-swarm watch --auto
+
+# Or specify repo explicitly
 claude-swarm watch --repo myorg/myapp --auto
 
 # Full pipeline with vault + E2E
-claude-swarm watch --repo myorg/myapp --auto \
+claude-swarm watch --auto \
   --vault ../second-brain \
   --base-url http://localhost:3000 \
   --red-team
 
 # Dry run — see what would be processed
-claude-swarm watch --repo myorg/myapp --dry-run
+claude-swarm watch --dry-run
 
 # Slower poll, lower rate limit
-claude-swarm watch --repo myorg/myapp --auto \
-  --interval 120000 --max-per-hour 5
+claude-swarm watch --auto --interval 120000 --max-per-hour 5
 ```
 
 ---

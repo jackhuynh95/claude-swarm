@@ -8,6 +8,7 @@ import { executeShipFlow } from './phases/ship-flow.js';
 import { executePostShip } from './phases/post-ship-runner.js';
 import { executeClarifyPhase } from './phases/clarifier.js';
 import { transitionLabel, addComment } from './phases/label-manager.js';
+import { resolveRepo, loadProjectConfig } from '../../config-resolver.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -16,7 +17,7 @@ const hourlyProcessed: number[] = [];
 
 export const watchCommand = new Command('watch')
   .description('Watch GitHub issues and dispatch to execution flows')
-  .requiredOption('--repo <repo>', 'GitHub repository (owner/repo)')
+  .option('--repo <repo>', 'GitHub repository (owner/repo) — auto-detected from git remote')
   .option('--interval <ms>', 'Poll interval in milliseconds', '60000')
   .option('--max-per-hour <n>', 'Max issues processed per hour', '10')
   .option('--auto', 'Enable dangerously-skip-permissions mode', false)
@@ -26,10 +27,18 @@ export const watchCommand = new Command('watch')
   .option('--use-team', 'Use /ck:team for parallel agent execution', false)
   .option('--dry-run', 'Fetch and classify issues without executing flows', false)
   .action(async (options) => {
+    // Resolve repo: CLI flag > .claude-swarm.json > git remote
+    const projectConfig = loadProjectConfig();
+    const repo = resolveRepo(options.repo);
+    if (!repo) {
+      console.error('[watch] Error: Could not detect repo. Use --repo or add .claude-swarm.json');
+      process.exit(1);
+    }
+
     const config: WatchConfig = {
-      repo: options.repo,
-      intervalMs: parseInt(options.interval, 10),
-      maxPerHour: parseInt(options.maxPerHour, 10),
+      repo,
+      intervalMs: parseInt(options.interval ?? projectConfig.interval ?? '60000', 10),
+      maxPerHour: parseInt(options.maxPerHour ?? projectConfig.maxPerHour ?? '10', 10),
       labels: {
         trigger: 'ready_for_dev',
         shipped: 'shipped',
