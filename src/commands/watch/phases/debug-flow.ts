@@ -20,7 +20,7 @@ export interface DebugFlowConfig {
 const MAX_BUILD_RETRIES = 3;
 
 /**
- * Execute the debug flow: /debug -> /fix -> /test with retry loop.
+ * Execute the debug flow: /ck:debug -> /ck:fix -> /ck:test with retry loop.
  * Max cycles configurable (default 3). Each cycle feeds failure context forward.
  */
 export async function executeDebugFlow(
@@ -53,7 +53,7 @@ export async function executeDebugFlow(
     const lastTest = history.getLastPhaseOutput(issue.number, 'test');
     const failureContext = lastTest?.output ?? '';
 
-    // --- Debug phase (opus, read-only analysis) ---
+    // --- Debug phase (opus, read-only analysis via /ck:debug) ---
     const debugPrompt = buildDebugPrompt(issue, failureContext, cycle);
     const debugResult = await invokeClaudePhase(
       debugPrompt, 'debug', classified.modelOverride, config.autoMode, cwd,
@@ -65,7 +65,7 @@ export async function executeDebugFlow(
 
     const debugAnalysis = debugResult.output ?? '';
 
-    // --- Fix phase (sonnet, apply changes) ---
+    // --- Fix phase (sonnet, apply changes via /ck:fix) ---
     const fixPrompt = buildFixPrompt(issue, debugAnalysis);
     let fixResult = await invokeClaudePhase(
       fixPrompt, 'fix', classified.modelOverride, config.autoMode, cwd,
@@ -80,7 +80,7 @@ export async function executeDebugFlow(
       if (buildOk) break;
 
       if (buildAttempt < MAX_BUILD_RETRIES - 1) {
-        const retryPrompt = `/fix Fix build errors from previous attempt. Original issue #${issue.number}: ${issue.title}`;
+        const retryPrompt = `/ck:fix Fix build errors from previous attempt. Original issue #${issue.number}: ${issue.title}`;
         fixResult = await invokeClaudePhase(
           retryPrompt, 'fix', classified.modelOverride, config.autoMode, cwd,
         );
@@ -90,8 +90,8 @@ export async function executeDebugFlow(
       }
     }
 
-    // --- Test phase (sonnet, verify) ---
-    const testPrompt = `/test Verify fix for #${issue.number}: ${issue.title}`;
+    // --- Test phase (sonnet, verify via /ck:test) ---
+    const testPrompt = `/ck:test Verify fix for #${issue.number}: ${issue.title}`;
     const testResult = await invokeClaudePhase(
       testPrompt, 'test', undefined, config.autoMode, cwd,
     );
@@ -154,7 +154,7 @@ export async function executeDebugFlow(
 // --- Helpers ---
 
 function buildDebugPrompt(issue: { number: number; title: string; body: string | null }, failureContext: string, cycle: number): string {
-  let prompt = `Investigate root cause of #${issue.number}: ${issue.title}\n\n${issue.body ?? '(no body)'}`;
+  let prompt = `/ck:debug Investigate root cause of #${issue.number}: ${issue.title}\n\n${issue.body ?? '(no body)'}`;
   if (cycle > 0 && failureContext) {
     prompt += `\n\n--- Previous test failure (cycle ${cycle}) ---\n${failureContext}`;
   }
@@ -163,7 +163,7 @@ function buildDebugPrompt(issue: { number: number; title: string; body: string |
 }
 
 function buildFixPrompt(issue: { number: number; title: string; body: string | null }, debugAnalysis: string): string {
-  return `/fix Fix based on debug analysis for #${issue.number}: ${issue.title}\n\n${issue.body ?? ''}\n\n--- Debug Analysis ---\n${debugAnalysis}`;
+  return `/ck:fix Fix based on debug analysis for #${issue.number}: ${issue.title}\n\n${issue.body ?? ''}\n\n--- Debug Analysis ---\n${debugAnalysis}`;
 }
 
 /**
