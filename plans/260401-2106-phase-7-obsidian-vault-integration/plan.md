@@ -1,5 +1,5 @@
 ---
-status: ready
+status: complete
 priority: high
 blockedBy: []
 blocks: []

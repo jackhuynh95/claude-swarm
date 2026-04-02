@@ -186,7 +186,7 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 | 6 | Set up GitHub labels (ready_for_dev, shipped, verified, etc.) | Done |
 | 7 | Port `setup-labels.sh` logic or create TS equivalent | Done |
 
-**Milestone**: CK watch daemon runs against a test repo from the fork.
+**Milestone**: CK watch daemon runs against a test repo from the fork. ✓ Complete
 
 ---
 
@@ -203,7 +203,7 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 | 12 | Add smart label injection: "hard" → opus, "frontend" → design-review | Done |
 | 13 | Add [DOCS/CHORE] → ship-flow with --no-test | Done |
 
-**Milestone**: Watcher routes different issue types to different flows.
+**Milestone**: Watcher routes different issue types to different flows. ✓ Complete
 
 ---
 
