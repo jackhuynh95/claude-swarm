@@ -1,6 +1,6 @@
 # Claude-Swarm Implementation Roadmap
 
-**Date**: 2026-04-01
+**Date**: 2026-04-02 (synced from git history)
 **Source**: CK watch analysis + CK v2.14.0 spec + auto-claude pipeline + GPT-5.4 research + team workflow insights
 **Repo**: `claude-swarm` (fork of `mrgoonie/claudekit-cli`)
 
@@ -120,14 +120,14 @@ All `/ck:` prefix is **mandatory** in v2.14.0+ to avoid Claude Code built-in col
 
 | # | Task | Status |
 |---|---|---|
-| 0a | Migrate all `/code:*` refs → `/ck:cook` in execution flows | Pending |
-| 0b | Integrate `/ck:team` — spawn parallel agents (research, implement, review, debug) | Pending |
-| 0c | Integrate `/ck:team` red-team protocol into verifier.ts (adversarial review) | Pending |
-| 0d | Integrate `/ck:ship` — automated feature branch lifecycle (test → review → PR) | Pending |
-| 0e | Integrate `/ck:ship --official` vs `--beta` branch targeting | Pending |
-| 0f | Integrate `/ck:security-scan` into post-ship safety phase | Pending |
-| 0g | Integrate `/ck:llms` — generate llms.txt for AI-native codebase comprehension | Pending |
-| 0h | Integrate `/ck:problem-solving` techniques into debug-flow.ts | Pending |
+| 0a | Migrate all `/code:*` refs → `/ck:cook` in execution flows | Done |
+| 0b | Integrate `/ck:team` — spawn parallel agents (research, implement, review, debug) | Done |
+| 0c | Integrate `/ck:team` red-team protocol into verifier.ts (adversarial review) | Done |
+| 0d | Integrate `/ck:ship` — automated feature branch lifecycle (test → review → PR) | Done |
+| 0e | Integrate `/ck:ship --official` vs `--beta` branch targeting | Done |
+| 0f | Integrate `/ck:security-scan` into post-ship safety phase | Done |
+| 0g | Integrate `/ck:llms` — generate llms.txt for AI-native codebase comprehension | Done |
+| 0h | Integrate `/ck:problem-solving` techniques into debug-flow.ts | Done |
 
 ### Updated Skill Mapping (v2.14.0)
 
@@ -168,7 +168,7 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
   → PASS / FAIL / PARTIAL verdict
 ```
 
-**Milestone**: All commands use `/ck:` prefix. New v2.14.0 skills wired into flows.
+**Milestone**: All commands use `/ck:` prefix. New v2.14.0 skills wired into flows. ✓ Complete
 
 ---
 
@@ -230,14 +230,14 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 
 | # | Task | Status |
 |---|---|---|
-| 20 | Create `verifier.ts` — independent verify agent (PASS/FAIL/PARTIAL) | Pending |
-| 21 | Create `e2e-runner.ts` — agent-browser E2E testing | Pending |
-| 22 | Create `slack-reporter.ts` — /slack-report to team channel | Pending |
-| 23 | Create `design-reviewer.ts` — frontend-design review (manual trigger only) | Pending |
-| 24 | Create `journal-writer.ts` — obsidian-vault Daily + Notes extraction | Pending |
-| 25 | Wire all post-ship phases into watcher lifecycle | Pending |
+| 20 | Create `verifier.ts` — independent verify agent (PASS/FAIL/PARTIAL) | Done |
+| 21 | Create `e2e-runner.ts` — agent-browser E2E testing | Done |
+| 22 | Create `slack-reporter.ts` — /slack-report to team channel | Done |
+| 23 | Create `design-reviewer.ts` — frontend-design review (manual trigger only) | Done |
+| 24 | Create `journal-writer.ts` — obsidian-vault Daily + Notes extraction | Done |
+| 25 | Wire all post-ship phases into watcher lifecycle via `post-ship-runner.ts` | Done |
 
-**Milestone**: After implementation, watcher auto-verifies, E2E tests, reports to Slack, journals to Obsidian.
+**Milestone**: After implementation, watcher auto-verifies, E2E tests, reports to Slack, journals to Obsidian. ✓ Complete
 
 ---
 
@@ -247,12 +247,12 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 
 | # | Task | Status |
 |---|---|---|
-| 26 | Create `slack-reader.ts` — /slack-read task extraction | Pending |
-| 27 | Create `brainstormer.ts` — /brainstorm → /issue pipeline | Pending |
-| 28 | CLI entry points: `claude-swarm read`, `claude-swarm brainstorm`, etc. | Pending |
-| 29 | Port report-issue standalone mode | Pending |
+| 26 | Create `slack-reader.ts` — /slack-read task extraction | Done |
+| 27 | Create `brainstormer.ts` — /brainstorm → /issue pipeline | Done |
+| 28 | CLI entry points: `claude-swarm read`, `claude-swarm brainstorm`, etc. | Done |
+| 29 | Port report-issue standalone mode | Done |
 
-**Milestone**: Standalone CLI tools work independently of the watcher daemon.
+**Milestone**: Standalone CLI tools work independently of the watcher daemon. ✓ Complete
 
 ---
 
@@ -262,16 +262,16 @@ Phase: Docs         → /ck:llms [NEW — llms.txt generation]
 
 | # | Task | Status |
 |---|---|---|
-| 30 | Add sensitive data filter — strip secrets before posting to GitHub | Pending |
-| 31 | Add response truncation — respect GitHub API limits | Pending |
-| 32 | Add AI disclaimer to bot comments | Pending |
-| 33 | Add comment loop prevention — detect own bot comments, skip | Pending |
-| 34 | Add maintainer-last detection — don't spam after discussion closes | Pending |
-| 35 | Add budget guards — per-worker token caps, continuation limits | Pending |
-| 36 | Add nightly cost summary | Pending |
-| 37 | Add conversation history tracking across phases per issue | Pending |
+| 30 | Add sensitive data filter — `comment-sanitizer.ts` strips secrets before posting | Done |
+| 31 | Add response truncation — respect GitHub API limits | Done |
+| 32 | Add AI disclaimer to bot comments | Done |
+| 33 | Add comment loop prevention — `comment-guard.ts` detects own bot comments, skip | Done |
+| 34 | Add maintainer-last detection — don't spam after discussion closes | Done |
+| 35 | Add budget guards — `budget-guard.ts` per-worker token caps, continuation limits | Done |
+| 36 | Add nightly cost summary — `cost-tracker.ts` | Done |
+| 37 | Add conversation history tracking — `conversation-history.ts` across phases per issue | Done |
 
-**Milestone**: Safe for overnight unattended runs with budget controls.
+**Milestone**: Safe for overnight unattended runs with budget controls. ✓ Complete
 
 ---
 
