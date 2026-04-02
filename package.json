@@ -1,15 +1,41 @@
 {
-  "name": "claude-swarm",
+  "name": "@jackhuynh95/claude-swarm",
   "version": "0.1.0",
   "description": "AI-powered GitHub issue automation daemon built on CK watch",
   "type": "module",
   "bin": {
     "claude-swarm": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "dev": "bun src/commands/watch/watch-command.ts",
     "watch": "bun src/commands/watch/watch-command.ts watch"
+  },
+  "keywords": [
+    "claude",
+    "ai",
+    "automation",
+    "github",
+    "issues",
+    "agent",
+    "swarm",
+    "cli"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jackhuynh95/claude-swarm.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "commander": "^12.1.0",

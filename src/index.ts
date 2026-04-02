@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { Command } from 'commander';
 import { watchCommand } from './commands/watch/watch-command.js';
 import { readCommand } from './cli/slack-reader.js';
