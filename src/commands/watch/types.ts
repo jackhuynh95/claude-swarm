@@ -55,9 +55,12 @@ export interface ClassifiedIssue {
 
 // Smart routing flags
 export interface RouteFlags {
-  designReview: boolean;     // "frontend" label
+  designReview: boolean;     // "frontend"/"ui" label
   securityScan: boolean;     // "security" label
   hardMode: boolean;         // "hard" label → opus override
+  ciFailure: boolean;        // "ci"/"ci-failure"/"pipeline" label
+  hasLogs: boolean;          // issue body contains log/stacktrace content
+  quickFix: boolean;         // "quick"/"trivial"/"typo" label
 }
 
 // Per-issue budget limits for unattended runs

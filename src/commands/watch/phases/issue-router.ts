@@ -63,10 +63,14 @@ function detectIssueType(issue: GHIssue): IssueType {
 
 function detectRouteFlags(issue: GHIssue): RouteFlags {
   const labelNames = new Set(issue.labels.map(l => l.name.toLowerCase()));
+  const body = issue.body ?? '';
 
   return {
     hardMode: labelNames.has('hard'),
     designReview: labelNames.has('frontend') || labelNames.has('ui'),
     securityScan: labelNames.has('security'),
+    ciFailure: labelNames.has('ci') || labelNames.has('ci-failure') || labelNames.has('pipeline'),
+    hasLogs: /```[\s\S]{50,}```|stack\s?trace|at\s+\S+\s+\(|error\s+log/i.test(body),
+    quickFix: labelNames.has('quick') || labelNames.has('trivial') || labelNames.has('typo'),
   };
 }
