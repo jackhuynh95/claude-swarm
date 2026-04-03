@@ -137,11 +137,11 @@ classify issue labels/content
 | 15 | Keep `/ck:cook @plan.md --auto` as implementation step | Pending |
 | 16 | Add `/ck:scout` after cook for edge case discovery | Pending |
 | 17 | Add `/ck:code-review` after cook for quality check | Pending |
-| 18 | Replace manual git push + PR with `/ck:ship --official` or `--beta` | Pending |
+| 18 | Remove `/ck:ship` from ship-flow — moved to post-ship verify gate | Pending |
 | 19 | Add `--skip-test` routing for DOCS/CHORE issues | Pending |
-| 20 | Add `/ck:predict` step for large features (5-persona impact debate) | Pending |
+| 20 | Ship-flow ends at commitChanges() — NO push, NO PR | Pending |
 
-**New ship-flow:**
+**New ship-flow (stops at commit — no PR here):**
 ```
 issue classified as FEATURE
   │
@@ -157,14 +157,8 @@ issue classified as FEATURE
   ├── /ck:scout (edge cases)
   ├── /ck:code-review
   │
-  ├── large feature? → /ck:predict (5-persona debate)
-  │
-  └── /ck:ship --official (or --beta)
-      ├── merge main
-      ├── run tests
-      ├── 2-pass review (standard + red-team)
-      ├── bump version + changelog
-      └── push + create PR
+  └── commitChanges() ← STOP HERE. No push. No PR.
+      (PR created later by /ck:ship in post-ship verify gate)
 ```
 
 ---
@@ -224,17 +218,47 @@ after implementation
 
 ---
 
-## Phase 5 — Upgrade verifier.ts (Review Flow)
+## Phase 5 — Upgrade verifier.ts → Verify + Ship Gate
 
-**Goal**: Use VividKit review commands for stronger verification.
+**Goal**: `/ck:ship` IS the verification gate. Falls back to branch-manager if it fails.
+
+**Key decision**: `/ck:ship` includes test + 2-pass review (standard + red-team) + version bump + changelog + PR. It replaces both the old verifier review AND the old createPullRequest(). branch-manager.ts `createPullRequest()` is kept UNTOUCHED as fallback.
 
 | # | Task | Status |
 |---|---|---|
-| 33 | Add `/ck:scout` before verification (edge case discovery) | Pending |
-| 34 | Replace basic review with `/ck:code-review` | Pending |
-| 35 | Add `/ck:code-review --parallel` for multi-reviewer verification | Pending |
-| 36 | Add `/ck:predict` for impact assessment on large changes | Pending |
-| 37 | Keep PASS/FAIL/PARTIAL verdict system | Pending |
+| 33 | Add `/ck:scout` before `/ck:ship` (edge case discovery) | Pending |
+| 34 | Add `/ck:predict` for impact assessment on large changes | Pending |
+| 35 | Wire `/ck:ship --official` as PRIMARY verify + PR path | Pending |
+| 36 | On `/ck:ship` failure → FALLBACK to `createPullRequest()` from branch-manager.ts | Pending |
+| 37 | Keep branch-manager.ts `createPullRequest()` UNTOUCHED (rollback safety) | Pending |
+| 38 | Log which path was used: "shipped via /ck:ship" or "shipped via fallback" | Pending |
+| 39 | PASS = /ck:ship succeeds (PR created). FAIL = both /ck:ship and fallback fail | Pending |
+
+**New verify gate (in post-ship-runner.ts):**
+```
+after debug-flow or ship-flow commits:
+  │
+  ├── e2e-runner   → /ck:test --e2e (if --base-url)
+  ├── security     → /ck:security-scan (if "security" label)
+  │
+  ├── /ck:scout    → edge case discovery
+  ├── /ck:predict  → 5-persona impact debate (large changes only)
+  │
+  ├── TRY: /ck:ship --official
+  │   ├── merge main
+  │   ├── run tests
+  │   ├── 2-pass review (standard + red-team)
+  │   ├── bump version + changelog
+  │   ├── push + create PR
+  │   └── SUCCESS → PASS
+  │
+  ├── CATCH: /ck:ship failed
+  │   └── FALLBACK: branch-manager.ts createPullRequest()
+  │       └── git push + gh pr create (old code, untouched)
+  │
+  ├── slack-reporter → report result
+  └── journal-writer → vault
+```
 
 ---
 
@@ -244,12 +268,12 @@ after implementation
 
 | # | Task | Status |
 |---|---|---|
-| 38 | `build generate` uses `/ck:brainstorm` → `/ck:plan --hard` for roadmap creation | Pending |
-| 39 | `build run` uses `/ck:cook @plan.md --auto` per issue (already correct) | Pending |
-| 40 | `build run` adds `/ck:test` after cook (already correct) | Pending |
-| 41 | `build run` uses `/ck:ship --official` for final commit + PR | Pending |
-| 42 | `build run --hard` adds `/ck:plan red-team` and `/ck:predict` per epic | Pending |
-| 43 | `build generate` adds `/ck:scenario` to generate test cases in roadmap | Pending |
+| 40 | `build generate` uses `/ck:brainstorm` → `/ck:plan --hard` for roadmap creation | Pending |
+| 41 | `build run` uses `/ck:cook @plan.md --auto` per issue (already correct) | Pending |
+| 42 | `build run` adds `/ck:test` after cook (already correct) | Pending |
+| 43 | `build run` uses `/ck:ship --official` as verify + PR (fallback to branch-manager) | Pending |
+| 44 | `build run --hard` adds `/ck:plan red-team` and `/ck:predict` per epic | Pending |
+| 45 | `build generate` adds `/ck:scenario` to generate test cases in roadmap | Pending |
 
 ---
 
@@ -321,13 +345,13 @@ after implementation
 | Phase | What | Files | Tasks |
 |---|---|---|---|
 | 1 | Upgrade debug-flow.ts | `debug-flow.ts` | 10 |
-| 2 | Upgrade ship-flow.ts | `ship-flow.ts` | 10 |
+| 2 | Upgrade ship-flow.ts (no PR here) | `ship-flow.ts` | 10 |
 | 3 | Add test-flow.ts | `test-flow.ts` (new) | 6 |
 | 4 | Add security-flow.ts | `security-flow.ts` (new) | 6 |
-| 5 | Upgrade verifier.ts | `verifier.ts` | 5 |
+| 5 | Verify + Ship gate (/ck:ship + fallback) | `post-ship-runner.ts`, `verifier.ts` | 7 |
 | 6 | Upgrade builder | `epic-executor.ts` | 6 |
 | 7 | Watcher integration | `watch-command.ts`, `issue-router.ts`, `model-router.ts` | 6 |
-| **Total** | | **7 files (2 new, 5 upgraded)** | **49 tasks** |
+| **Total** | | **8 files (2 new, 6 upgraded)** | **51 tasks** |
 
 ---
 
