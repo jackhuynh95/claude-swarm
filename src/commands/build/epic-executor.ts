@@ -161,7 +161,7 @@ export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}
     const pipeline: { name: Step; prompt: string }[] = [
       { name: 'plan',   prompt: `/ck:plan --fast Implement #${child.number}: ${child.title}` },
       { name: 'cook',   prompt: `/ck:cook --auto #${child.number}: ${child.title}` },
-      { name: 'test',   prompt: `/test` },
+      { name: 'test',   prompt: `/ck:test` },
       { name: 'commit', prompt: `/ck:git cp` },
     ];
 
