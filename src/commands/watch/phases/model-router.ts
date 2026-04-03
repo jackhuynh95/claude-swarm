@@ -18,6 +18,8 @@ const PHASE_CONFIGS: Record<PhaseType, PhaseConfig> = {
   code_review:  { model: 'sonnet', effort: 'medium', maxTurns: 3,  timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob'] },
   scenario:     { model: 'sonnet', effort: 'low',    maxTurns: 3,  timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob'] },
   ui_test:      { model: 'sonnet', effort: 'low',    maxTurns: 3,  timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
+  ship:         { model: 'sonnet', effort: 'medium', maxTurns: 5,  timeoutMs: 300_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
+  predict:      { model: 'opus',   effort: 'high',   maxTurns: 5,  timeoutMs: 300_000, tools: ['Read', 'Grep', 'Glob'] },
   slack_read:   { model: 'opus',   effort: 'low',    maxTurns: 2,  timeoutMs: 60_000,  tools: ['Bash'] },
   slack_report: { model: 'haiku',  effort: 'low',    maxTurns: 1,  timeoutMs: 30_000,  tools: ['Bash'] },
   journal:      { model: 'haiku',  effort: 'low',    maxTurns: 1,  timeoutMs: 30_000,  tools: ['Write'] },

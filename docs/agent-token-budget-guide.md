@@ -16,7 +16,9 @@ Reference for spawning sub-agents with proper model routing and token controls.
 | Fix (code) | sonnet | medium | 5 | Code execution |
 | Test | sonnet | low | 3 | Run and report |
 | E2E | sonnet | low | 3 | Browser automation |
-| Verify | sonnet | medium | 3 | Independent check |
+| Scout | sonnet | low | 3 | Edge case discovery |
+| Predict (5-persona) | opus | high | 5 | Multi-perspective impact debate |
+| Ship | sonnet | medium | 5 | Automated PR creation (test→review→PR) |
 | Security scan | sonnet | medium | 3 | OWASP audit |
 | Slack read | opus | low | 2 | Extract, don't overthink |
 | Slack report | haiku | low | 1 | Format and send |
@@ -171,7 +173,9 @@ Restrict tool access per phase to reduce token waste and improve safety.
 | Fix / Cook | Read, Grep, Glob, Bash, Write, Edit | Full code access |
 | Test | Read, Grep, Glob, Bash | Run tests, no code edits |
 | E2E | Bash | Browser automation only |
-| Verify | Read, Grep, Glob | Read-only verification |
+| Scout | Read, Grep, Glob | Edge case discovery (read-only) |
+| Predict | Read, Grep, Glob | Impact analysis (read-only) |
+| Ship | Read, Grep, Glob, Bash | Merge, test, review, PR creation |
 | Slack read | Bash | CDP/API access only |
 | Slack report | Bash | Send message only |
 | Journal | Write | Write to vault only |
@@ -191,7 +195,9 @@ const BUDGET = {
   fix:         { maxTokens: 40000, maxTurns: 5,  timeoutMs: 300000 },
   test:        { maxTokens: 15000, maxTurns: 3,  timeoutMs: 180000 },
   e2e:         { maxTokens: 15000, maxTurns: 3,  timeoutMs: 180000 },
-  verify:      { maxTokens: 20000, maxTurns: 3,  timeoutMs: 180000 },
+  scout:       { maxTokens: 15000, maxTurns: 3,  timeoutMs: 180000 },
+  predict:     { maxTokens: 30000, maxTurns: 5,  timeoutMs: 300000 },
+  ship:        { maxTokens: 40000, maxTurns: 5,  timeoutMs: 300000 },
   slackRead:   { maxTokens: 10000, maxTurns: 2,  timeoutMs: 60000  },
   slackReport: { maxTokens: 5000,  maxTurns: 1,  timeoutMs: 30000  },
   journal:     { maxTokens: 5000,  maxTurns: 1,  timeoutMs: 30000  },

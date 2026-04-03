@@ -42,6 +42,7 @@ export type PhaseType =
   | 'security_review' | 'security_stride'
   | 'scout' | 'code_review'
   | 'scenario' | 'ui_test'
+  | 'ship' | 'predict'
   | 'slack_read' | 'slack_report' | 'journal' | 'docs'
   | 'design_review';
 

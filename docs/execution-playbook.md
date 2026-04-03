@@ -124,16 +124,16 @@ Independent modules — can be built in parallel.
 # Option A: Sequential (safer)
 claude -p "/ck:plan --fast @docs/implement-roadmap.md
   Implement Phase 4 (Post-Ship Phases).
-  Tasks: verifier.ts, e2e-runner.ts, slack-reporter.ts,
-  design-reviewer.ts, journal-writer.ts,
-  wire all into watcher lifecycle." \
+  Tasks: e2e-runner.ts, slack-reporter.ts,
+  design-reviewer.ts, journal-writer.ts, security-flow.ts,
+  wire all into watcher lifecycle via post-ship-runner.ts." \
   --model opus --effort high --max-turns 8
 
 claude -p "/ck:cook --auto @plans/latest/plan.md" \
   --model sonnet --effort medium --max-turns 10
 
 # Option B: Parallel (faster, if no file conflicts)
-claude -p "/ck:team implement 'Phase 4: build verifier, e2e-runner, slack-reporter, journal-writer as independent modules' --devs 2 --reviewers 1" \
+claude -p "/ck:team implement 'Phase 4: build e2e-runner, slack-reporter, design-reviewer, journal-writer, security-flow as independent modules' --devs 2 --reviewers 1" \
   --model sonnet --max-turns 10
 
 # Test + ship
@@ -141,7 +141,7 @@ claude -p "/test" --model sonnet --effort low --max-turns 3
 claude -p "/ck:ship --beta" --model sonnet --max-turns 5
 ```
 
-**Done when**: Watcher auto-verifies, E2E tests, reports to Slack, journals to Obsidian after each issue.
+**Done when**: Watcher orchestrates post-ship: security-scan → e2e → scout → predict (hard only) → /ck:ship (or fallback) → design-review → slack-report → journal.
 
 ---
 
