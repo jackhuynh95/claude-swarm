@@ -99,7 +99,7 @@ VIVIDKIT:
 | 1 | Replace `/ck:debug → /ck:fix → /ck:test` with single `/ck:fix` call (includes all 6 steps) | Done |
 | 2 | Add `--hard` flag routing for "hard" labeled issues | Done |
 | 3 | Add `--quick` flag routing for simple bugs | Done |
-| 4 | Add `--parallel` flag for multiple related bugs | Pending |
+| 4 | Add `--parallel` flag for multiple related bugs | Done |
 | 5 | Add `--security` flag for security-labeled issues | Done |
 | 6 | Add `--ci` flag for CI/CD pipeline failures | Done |
 | 7 | Add `--ui` flag for frontend-labeled issues | Done |
@@ -301,11 +301,11 @@ claude-swarm watch --auto --effort low
 
 | # | Task | Status |
 |---|---|---|
-| M1 | Refactor model-router.ts to read from .claude-swarm.json first, then defaults | Pending |
-| M2 | Add --model and --effort CLI flags to watch command | Pending |
-| M3 | Add --model and --effort CLI flags to builder commands | Pending |
-| M4 | CLI flag overrides config overrides defaults (3-level chain) | Pending |
-| M5 | Add "red-team" and "security" phase configs to model-router | Pending |
+| M1 | Refactor model-router.ts to read from .claude-swarm.json first, then defaults | Done |
+| M2 | Add --model and --effort CLI flags to watch command | Done |
+| M3 | Add --model and --effort CLI flags to builder commands | Done |
+| M4 | CLI flag overrides config overrides defaults (3-level chain) | Done |
+| M5 | Add "red-team" and "security" phase configs to model-router | Done |
 
 ---
 
@@ -359,12 +359,12 @@ after debug-flow or ship-flow commits:
 
 | # | Task | Status |
 |---|---|---|
-| 40 | `build generate` uses `/ck:brainstorm` → `/ck:plan --hard` for roadmap creation | Pending |
-| 41 | `build run` uses `/ck:cook @plan.md --auto` per issue | Done (basic) |
-| 42 | `build run` adds `/ck:test` after cook | Done (basic) |
-| 43 | `build run` uses `/ck:ship --official` as verify + PR (fallback to branch-manager) | Pending |
-| 44 | `build run --hard` adds `/ck:plan red-team` and `/ck:predict` per epic | Pending |
-| 45 | `build generate` adds `/ck:scenario` to generate test cases in roadmap | Pending |
+| 40 | `build generate` uses `/ck:brainstorm` → `/ck:plan --hard` for roadmap creation | Done |
+| 41 | `build run` uses `/ck:cook @plan.md --auto` per issue | Done |
+| 42 | `build run` adds `/ck:test` after cook | Done |
+| 43 | `build run` uses `/ck:ship --official` as verify + PR (fallback to branch-manager) | Done |
+| 44 | `build run --hard` adds `/ck:plan red-team` and `/ck:predict` per epic | Done |
+| 45 | `build generate` adds `/ck:scenario` to generate test cases in roadmap | Done |
 
 ---
 
@@ -435,30 +435,17 @@ after debug-flow or ship-flow commits:
 
 | Phase | What | Track | Tasks | Status |
 |---|---|---|---|---|
-| 1 | Upgrade debug-flow.ts | — | 10 | **9/10 Done** (--parallel pending) |
+| 1 | Upgrade debug-flow.ts | — | 10 | **10/10 Done** |
 | 2 | Upgrade ship-flow.ts (no PR here) | — | 10 | **10/10 Done** |
 | 3 | Green Testing (test-flow.ts) | GREEN | 6 | **6/6 Done** |
 | 4 | Red Testing (security-flow.ts) | RED | 7 | **7/7 Done** |
 | 5 | Verify + Ship gate (/ck:ship + fallback) | — | 7 | **7/7 Done** |
-| 6 | Upgrade builder (epic-executor.ts) | — | 6 | **2/6 Done** (basic cook+test only) |
+| 6 | Upgrade builder (epic-executor.ts) | — | 6 | **6/6 Done** |
 | 7 | Watcher integration | — | 6 | **6/6 Done** |
-| M | Model + effort routing (flexible) | — | 5 | **0/5 Pending** |
-| **Total** | | | **57** | **47/57 Done (82%)** |
+| M | Model + effort routing (flexible) | — | 5 | **5/5 Done** |
+| **Total** | | | **57** | **57/57 Done (100%)** |
 
-### What's Next (10 remaining tasks)
-
-| # | Task | Phase | Priority |
-|---|---|---|---|
-| 4 | Add `--parallel` flag for multiple related bugs in debug-flow | 1 | Low |
-| 40 | `build generate` uses `/ck:brainstorm` → `/ck:plan --hard` | 6 | Medium |
-| 43 | `build run` uses `/ck:ship --official` (fallback to branch-manager) | 6 | Medium |
-| 44 | `build run --hard` adds `/ck:plan red-team` and `/ck:predict` | 6 | Medium |
-| 45 | `build generate` adds `/ck:scenario` for test case generation | 6 | Low |
-| M1 | Refactor model-router.ts to read from .claude-swarm.json | M | High |
-| M2 | Add --model and --effort CLI flags to watch command | M | High |
-| M3 | Add --model and --effort CLI flags to builder commands | M | Medium |
-| M4 | CLI flag overrides config overrides defaults (3-level chain) | M | High |
-| M5 | Add "red-team" and "security" phase configs to model-router | M | Medium |
+### VividKit Commands Sync: COMPLETE (v0.7.0)
 
 ---
 
