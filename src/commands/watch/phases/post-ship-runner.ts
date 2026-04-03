@@ -1,6 +1,6 @@
 import type { ClassifiedIssue, PhaseResult } from '../types.js';
-import { executeE2e, type E2eConfig } from './e2e-runner.js';
 import { executeDesignReview, type DesignReviewConfig } from './design-reviewer.js';
+import { executeTestFlow, type TestFlowConfig } from './test-flow.js';
 import { executeSlackReport, type SlackReporterConfig } from './slack-reporter.js';
 import { executeJournal, type JournalConfig } from './journal-writer.js';
 import { recordRun, type RunRecordConfig } from './run-recorder.js';
@@ -68,11 +68,11 @@ function parseShipResult(output: string): { success: boolean; prUrl?: string } {
 
 /**
  * Orchestrates all post-ship phases:
- * security → e2e → scout → predict → ship (try) → fallback → design-review → slack → journal → llms → record
+ * test-flow (green) → security-flow (red, if label) → scout → predict → ship (try) → fallback → design-review → slack → journal → llms → record
  *
  * PASS = PR created via /ck:ship or fallback createPullRequest().
- * FAIL = both ship paths failed.
- * E2E FAIL still stops pipeline before ship.
+ * FAIL = green test-flow fails.
+ * Security is advisory — never blocks pipeline.
  */
 export async function executePostShip(
   classified: ClassifiedIssue,
@@ -82,7 +82,21 @@ export async function executePostShip(
   const results: PhaseResult[] = [];
   const { issue } = classified;
 
-  // 1. Security flow — advisory, never blocks
+  // 1. GREEN TESTING — test-flow (scenario → test → ui-test → e2e), FAIL stops pipeline
+  const testConfig: TestFlowConfig = {
+    repo: config.repo,
+    autoMode: config.autoMode,
+    baseUrl: config.baseUrl,
+    cwd: config.cwd,
+  };
+  const greenResult = await executeTestFlow(classified, testConfig);
+  results.push(...greenResult.results);
+
+  if (!greenResult.greenPass) {
+    return { results, verdict: 'FAIL', pipelinePassed: false, shipPath: 'none' };
+  }
+
+  // 2. RED TESTING — security-flow (only if GREEN PASS + security label), advisory
   if (classified.flags.securityScan) {
     const securityConfig: SecurityFlowConfig = {
       repo: config.repo,
@@ -91,21 +105,6 @@ export async function executePostShip(
     };
     const securityResult = await executeSecurityFlow(classified, securityConfig);
     results.push(...securityResult.results);
-  }
-
-  // 2. E2E — FAIL stops pipeline (skips if no baseUrl)
-  const e2eConfig: E2eConfig = {
-    repo: config.repo,
-    autoMode: config.autoMode,
-    baseUrl: config.baseUrl,
-    scenarios: config.e2eScenarios,
-    cwd: config.cwd,
-  };
-  const e2eResult = await executeE2e(classified, e2eConfig);
-  results.push(e2eResult.phaseResult);
-
-  if (!e2eResult.skipped && !e2eResult.passed) {
-    return { results, verdict: 'FAIL', pipelinePassed: false, shipPath: 'none' };
   }
 
   // 3. Scout — edge case discovery, always runs, advisory

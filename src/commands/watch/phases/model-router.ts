@@ -25,6 +25,8 @@ const PHASE_CONFIGS: Record<PhaseType, PhaseConfig> = {
   journal:      { model: 'haiku',  effort: 'low',    maxTurns: 1,  timeoutMs: 30_000,  tools: ['Write'] },
   docs:         { model: 'sonnet', effort: 'low',    maxTurns: 2,  timeoutMs: 120_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
   design_review: { model: 'sonnet', effort: 'medium', maxTurns: 3, timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob'] },
+  retro:    { model: 'sonnet', effort: 'medium', maxTurns: 3, timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
+  watzup:   { model: 'sonnet', effort: 'low',    maxTurns: 2, timeoutMs: 120_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
 };
 
 /**

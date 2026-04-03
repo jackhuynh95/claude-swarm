@@ -9,6 +9,7 @@ import { executePostShip } from './phases/post-ship-runner.js';
 import { executeClarifyPhase } from './phases/clarifier.js';
 import { transitionLabel, addComment } from './phases/label-manager.js';
 import { resolveRepo, loadProjectConfig } from '../../config-resolver.js';
+import { invokeClaudePhase } from './phases/claude-invoker.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -63,6 +64,15 @@ async function pollAndDispatch(
   options: { auto: boolean; vault?: string; baseUrl?: string; redTeam: boolean; useTeam: boolean; dryRun: boolean },
 ): Promise<void> {
   try {
+    // Watzup — quick recent changes summary before processing issues
+    const watzupResult = await invokeClaudePhase(
+      '/ck:watzup Review recent git changes and summarize current project state.',
+      'watzup', undefined, options.auto,
+    );
+    if (watzupResult.output) {
+      console.log(`[watch] watzup: ${watzupResult.output.slice(0, 200)}`);
+    }
+
     const issues = await fetchTriggerIssues(config.repo, config.labels.trigger);
     if (issues.length === 0) return;
 
@@ -76,6 +86,17 @@ async function pollAndDispatch(
       }
 
       await processIssue(issue, config, options);
+    }
+
+    // Retro — sprint reflection after issues are processed
+    if (issues.length > 0 && !options.dryRun) {
+      const retroResult = await invokeClaudePhase(
+        `/ck:retro Sprint retrospective: ${issues.length} issue(s) processed this cycle. Summarize what was done, what went well, what needs improvement.`,
+        'retro', undefined, options.auto,
+      );
+      if (retroResult.output) {
+        console.log(`[watch] retro: ${retroResult.output.slice(0, 200)}`);
+      }
     }
   } catch (err) {
     console.error(`[watch] Poll error:`, err instanceof Error ? err.message : err);

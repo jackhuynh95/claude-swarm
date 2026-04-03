@@ -44,7 +44,8 @@ export type PhaseType =
   | 'scenario' | 'ui_test'
   | 'ship' | 'predict'
   | 'slack_read' | 'slack_report' | 'journal' | 'docs'
-  | 'design_review';
+  | 'design_review'
+  | 'retro' | 'watzup';
 
 // Classified issue (output of issue-router)
 export interface ClassifiedIssue {
