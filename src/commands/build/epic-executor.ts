@@ -162,7 +162,7 @@ export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}
       { name: 'plan',   prompt: `/ck:plan --fast Implement #${child.number}: ${child.title}` },
       { name: 'cook',   prompt: `/ck:cook --auto #${child.number}: ${child.title}` },
       { name: 'test',   prompt: `/test` },
-      { name: 'commit', prompt: `/ck:git cm` },
+      { name: 'commit', prompt: `/ck:git cp` },
     ];
 
     let allPassed = true;
