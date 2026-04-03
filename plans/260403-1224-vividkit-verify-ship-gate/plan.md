@@ -5,7 +5,7 @@ priority: high
 created: 2026-04-03
 mode: fast
 blockedBy: []
-blocks: []
+blocks: [260403-1231-vividkit-builder-upgrade]
 roadmap: docs/implement-roadmap-vividkit-commands.md (Phase 5)
 ---
 
