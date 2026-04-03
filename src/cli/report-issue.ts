@@ -45,7 +45,7 @@ async function executeReport(options: ReportOptions): Promise<void> {
   const modelOverride = options.model as ClaudeModel | undefined;
   const channelInfo = options.channel ? `\nTarget channel: ${options.channel}` : '';
 
-  const prompt = `Use the /slack-report skill to send a Slack report for this GitHub issue.
+  const prompt = `Use the /ttw:slack-report skill to send a Slack report for this GitHub issue.
 
 Issue: #${issueData.number} — ${issueData.title}
 Repo: https://github.com/${options.repo}

@@ -13,7 +13,7 @@ interface ReadOptions {
 async function executeSlackRead(channel: string, options: ReadOptions): Promise<void> {
   const modelOverride = options.model as ClaudeModel | undefined;
 
-  const prompt = `Use the /slack-read skill to read messages from the Slack channel "${channel}" from the last ${options.since}.
+  const prompt = `Use the /ttw:slack-read skill to read messages from the Slack channel "${channel}" from the last ${options.since}.
 Extract all actionable tasks, bugs, feature requests, and decisions.
 Format output as a numbered list with: task title, source (who said it), and priority (high/medium/low).
 If no tasks found, say "No actionable tasks found."`;

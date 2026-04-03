@@ -84,7 +84,7 @@ PR: ${s.prUrl}
 Duration: ${s.durationFormatted}
 Phases: ${s.phasesPassed}/${s.phasesTotal} passed
 
-Use the /slack-report skill to send this to the team channel.
+Use the /ttw:slack-report skill to send this to the team channel.
 Keep the message concise — 2-3 lines max.`;
 }
 
