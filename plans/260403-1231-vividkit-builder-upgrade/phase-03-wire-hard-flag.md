@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: Wire --hard Flag into build-command.ts
-status: pending
+status: done
 priority: medium
 effort: low
 ---
@@ -64,12 +64,12 @@ buildCommand
 
 ## Task List
 
-- [ ] 1. Add `--hard` option to `build run` command definition
-- [ ] 2. Pass `hard` flag through to executor options
-- [ ] 3. Compile check: `npx tsc --noEmit`
+- [x] 1. Add `--hard` option to `build run` command definition
+- [x] 2. Pass `hard` flag through to executor options
+- [x] 3. Compile check: `npx tsc --noEmit`
 
 ## Success Criteria
 
-- [ ] `build run --hard` triggers hard pipeline (plan --hard → red-team → cook → test → predict → ship)
-- [ ] `build run` (no --hard) triggers standard pipeline (plan --fast → cook → test → ship)
-- [ ] `npx tsc --noEmit` passes
+- [x] `build run --hard` triggers hard pipeline (plan --hard → red-team → cook → test → predict → ship)
+- [x] `build run` (no --hard) triggers standard pipeline (plan --fast → cook → test → ship)
+- [x] `npx tsc --noEmit` passes

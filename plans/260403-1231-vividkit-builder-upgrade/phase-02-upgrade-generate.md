@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: Upgrade Build Generate + Scenario Generation
-status: pending
+status: done
 priority: high
 effort: low
 ---
@@ -89,15 +89,15 @@ const MODEL_MAP_GENERATE = {
 
 ## Task List
 
-- [ ] 1. Add `MODEL_MAP_GENERATE` constant (brainstorm=opus, plan=opus, scenario=sonnet)
-- [ ] 2. Refactor generate function to 3-step pipeline: brainstorm → plan --hard → scenario
-- [ ] 3. Wire `/ck:scenario` as final step to generate BDD test cases per epic
-- [ ] 4. Compile check: `npx tsc --noEmit`
+- [x] 1. Add `MODEL_MAP_GENERATE` constant (brainstorm=opus, plan=opus, scenario=sonnet)
+- [x] 2. Refactor generate function to 3-step pipeline: brainstorm → plan --hard → scenario
+- [x] 3. Wire `/ck:scenario` as final step to generate BDD test cases per epic
+- [x] 4. Compile check: `npx tsc --noEmit`
 
 ## Success Criteria
 
-- [ ] `build generate` runs `/ck:brainstorm` first
-- [ ] `build generate` runs `/ck:plan --hard` (not `--fast`) for roadmap
-- [ ] `build generate` runs `/ck:scenario` to produce test cases
-- [ ] 3 sequential Claude subprocess calls with correct models
-- [ ] `npx tsc --noEmit` passes
+- [x] `build generate` runs `/ck:brainstorm` first
+- [x] `build generate` runs `/ck:plan --hard` (not `--fast`) for roadmap
+- [x] `build generate` runs `/ck:scenario` to produce test cases
+- [x] 3 sequential Claude subprocess calls with correct models
+- [x] `npx tsc --noEmit` passes

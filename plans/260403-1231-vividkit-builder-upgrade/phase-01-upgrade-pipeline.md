@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: Upgrade Epic Executor Pipeline
-status: pending
+status: done
 priority: high
 effort: medium
 ---
@@ -206,20 +206,20 @@ import { createPullRequest } from '../watch/phases/branch-manager.js';
 
 ## Task List
 
-- [ ] 1. Add `hard` to ExecutorOptions + update MODEL_MAP + Step type
-- [ ] 2. Import `createPullRequest` from branch-manager.ts
-- [ ] 3. Replace `commitIssue()` with `shipIssue()` (try ship, catch fallback)
-- [ ] 4. Add `redTeamPlan()` and `predictIssue()` functions
-- [ ] 5. Update `planIssue()` to accept `--fast` vs `--hard` flag
-- [ ] 6. Refactor `executeEpic()` to build dynamic pipeline (standard vs hard)
-- [ ] 7. Compile check: `npx tsc --noEmit`
+- [x] 1. Add `hard` to ExecutorOptions + update MODEL_MAP + Step type
+- [x] 2. Import `createPullRequest` from branch-manager.ts
+- [x] 3. Replace `commitIssue()` with `shipIssue()` (try ship, catch fallback)
+- [x] 4. Add `redTeamPlan()` and `predictIssue()` functions
+- [x] 5. Update `planIssue()` to accept `--fast` vs `--hard` flag
+- [x] 6. Refactor `executeEpic()` to build dynamic pipeline (standard vs hard)
+- [x] 7. Compile check: `npx tsc --noEmit`
 
 ## Success Criteria
 
-- [ ] Standard pipeline: plan --fast → cook → test → ship (with fallback)
-- [ ] Hard pipeline: plan --hard → red-team → cook → test → predict → ship (with fallback)
-- [ ] `/ck:ship --official` is primary PR path
-- [ ] `createPullRequest()` only called when `/ck:ship` fails
-- [ ] Log message indicates which path was used
-- [ ] `commit` step fully removed from pipeline
-- [ ] `npx tsc --noEmit` passes
+- [x] Standard pipeline: plan --fast → cook → test → ship (with fallback)
+- [x] Hard pipeline: plan --hard → red-team → cook → test → predict → ship (with fallback)
+- [x] `/ck:ship --official` is primary PR path
+- [x] `createPullRequest()` only called when `/ck:ship` fails
+- [x] Log message indicates which path was used
+- [x] `commit` step fully removed from pipeline
+- [x] `npx tsc --noEmit` passes

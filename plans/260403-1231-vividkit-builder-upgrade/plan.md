@@ -1,10 +1,10 @@
 ---
 title: VividKit Builder Upgrade
-status: pending
+status: complete
 priority: high
 created: 2026-04-03
 mode: fast
-blockedBy: [260403-1224-vividkit-verify-ship-gate]
+blockedBy: []
 blocks: []
 roadmap: docs/implement-roadmap-vividkit-commands.md (Phase 6)
 ---
@@ -29,9 +29,9 @@ On success: `closeIssue()` + `updateEpicChecklist()`. Resume support via `isIssu
 
 | # | Phase | File | Status |
 |---|---|---|---|
-| 1 | Upgrade epic-executor pipeline + add --hard mode | [phase-01](phase-01-upgrade-pipeline.md) | Pending |
-| 2 | Upgrade build generate + scenario generation | [phase-02](phase-02-upgrade-generate.md) | Pending |
-| 3 | Wire --hard flag into build-command.ts | [phase-03](phase-03-wire-hard-flag.md) | Pending |
+| 1 | Upgrade epic-executor pipeline + add --hard mode | [phase-01](phase-01-upgrade-pipeline.md) | Done |
+| 2 | Upgrade build generate + scenario generation | [phase-02](phase-02-upgrade-generate.md) | Done |
+| 3 | Wire --hard flag into build-command.ts | [phase-03](phase-03-wire-hard-flag.md) | Done |
 
 ## Dependencies
 
