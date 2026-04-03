@@ -25,7 +25,8 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Claude Code
+# Claude Code within the archived folder
+.claude-archived/*
 .claude/*
 !.claude/skills/
 .claude/skills/*
