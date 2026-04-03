@@ -6,6 +6,7 @@ import { executeSlackReport, type SlackReporterConfig } from './slack-reporter.j
 import { executeJournal, type JournalConfig } from './journal-writer.js';
 import { recordRun, type RunRecordConfig } from './run-recorder.js';
 import { invokeClaudePhase } from './claude-invoker.js';
+import { executeSecurityFlow, type SecurityFlowConfig } from './security-flow.js';
 
 export interface PostShipConfig {
   repo: string;
@@ -54,13 +55,18 @@ export async function executePostShip(
     return { results, verdict: 'FAIL', pipelinePassed: false };
   }
 
-  // 2. Security scan — runs when issue has "security" label, advisory only
+  // 2. Security flow (red testing) — runs when issue has "security" label
   if (classified.flags.securityScan) {
-    const secPrompt = `/ck:security-scan --full Run OWASP security audit on changes for #${classified.issue.number}: ${classified.issue.title}`;
-    const secResult = await invokeClaudePhase(
-      secPrompt, 'security', classified.modelOverride, config.autoMode, config.cwd,
-    );
-    results.push(secResult);
+    const securityConfig: SecurityFlowConfig = {
+      repo: config.repo,
+      autoMode: config.autoMode,
+      cwd: config.cwd,
+    };
+    const securityResult = await executeSecurityFlow(classified, securityConfig);
+    results.push(...securityResult.results);
+
+    // Red test failure is advisory — does NOT block pipeline
+    // (per roadmap: only GREEN FAIL blocks, RED is informational)
   }
 
   // 3. E2E — FAIL stops pipeline (skips if no baseUrl)
