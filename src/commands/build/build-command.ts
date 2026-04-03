@@ -16,22 +16,21 @@ export const buildCommand = new Command('build')
 
 buildCommand
   .command('generate <input>')
-  .description('Generate a structured roadmap from a topic or @file')
+  .description('Generate a roadmap via brainstorm → plan --hard → scenario pipeline')
   .option('--context <file>', 'Additional context file (@path)')
   .option('--epics <n>', 'Number of epics (default: auto)', parseInt)
-  .option('--dry-run', 'Print roadmap to stdout without saving', false)
-  .option('--output-dir <dir>', 'Output directory (default: docs)', 'docs')
+  .option('--dry-run', 'Preview pipeline steps without executing', false)
+  .option('--budget <n>', 'Max USD per claude call', parseFloat)
+  .option('--timeout <s>', 'Timeout per step in seconds (default: 600)', parseInt)
   .action(async (input, opts) => {
-    const result = await generateRoadmap({
+    await generateRoadmap({
       input,
-      context: opts.context,
-      epics: opts.epics,
-      dryRun: opts.dryRun,
-      outputDir: opts.outputDir,
+      context:  opts.context,
+      epics:    opts.epics,
+      dryRun:   opts.dryRun,
+      budget:   opts.budget,
+      timeout:  opts.timeout,
     });
-    if (!opts.dryRun && result.roadmapPath) {
-      console.log(`Roadmap saved to: ${result.roadmapPath}`);
-    }
   });
 
 buildCommand
@@ -70,11 +69,12 @@ buildCommand
 
 buildCommand
   .command('run')
-  .description('Execute plan->cook->test->commit pipeline for epics')
+  .description('Execute plan->cook->test->ship pipeline for epics')
   .option('--epic <n>', 'Run specific epic by issue number', parseInt)
   .option('--all', 'Run all open epics (label: epic)')
   .option('--from <n>', 'Resume from epic number N (with --all)', parseInt)
   .option('--from-issue <n>', 'Skip child issues < N within an epic', parseInt)
+  .option('--hard', 'Deep analysis: plan red-team + predict per issue')
   .option('--auto', 'Enable auto mode for all claude calls')
   .option('--budget <n>', 'Max USD per claude call', parseFloat)
   .option('--permission-mode <mode>', 'Permission mode: auto or skip')
@@ -83,6 +83,7 @@ buildCommand
   .action(async (opts) => {
     const executorOpts = {
       auto:           opts.auto,
+      hard:           opts.hard,
       budget:         opts.budget,
       permissionMode: opts.permissionMode,
       timeout:        opts.timeout,

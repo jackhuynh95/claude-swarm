@@ -1,14 +1,17 @@
 import { spawn, execSync } from 'node:child_process';
 import chalk from 'chalk';
 import ora from 'ora';
+import { createPullRequest } from '../watch/phases/branch-manager.js';
 
 // ─── Model routing: step → claude model ─────────────────────────────────────
 
 const MODEL_MAP = {
-  plan:   'claude-opus-4-5',
-  cook:   'claude-sonnet-4-5',
-  test:   'claude-sonnet-4-5',
-  commit: 'claude-haiku-4-5-20251001',
+  plan:            'claude-opus-4-5',
+  'plan-red-team': 'claude-opus-4-5',
+  cook:            'claude-sonnet-4-5',
+  test:            'claude-sonnet-4-5',
+  predict:         'claude-opus-4-5',
+  ship:            'claude-sonnet-4-5',
 } as const;
 
 type Step = keyof typeof MODEL_MAP;
@@ -17,6 +20,7 @@ type Step = keyof typeof MODEL_MAP;
 
 export interface ExecutorOptions {
   auto?:           boolean;
+  hard?:           boolean;          // --hard mode: plan red-team + predict per issue
   budget?:         number;          // --max-budget-usd per claude call
   permissionMode?: 'auto' | 'skip'; // 'auto' → --permission-mode auto, 'skip' → --dangerously-skip-permissions
   timeout?:        number;          // seconds per subprocess (default 600)
@@ -135,6 +139,35 @@ async function runStep(step: Step, prompt: string, opts: ExecutorOptions): Promi
   });
 }
 
+// ─── Ship step: /ck:ship --official with createPullRequest() fallback ─────────
+
+async function shipIssue(issue: EpicChild, opts: ExecutorOptions): Promise<StepResult> {
+  const shipResult = await spawnClaude('/ck:ship --official', {
+    model:          MODEL_MAP.ship,
+    budget:         opts.budget,
+    permissionMode: opts.permissionMode,
+    timeout:        opts.timeout ?? 600,
+  });
+
+  if (shipResult.success) {
+    console.log(chalk.green(`    shipped via /ck:ship`));
+    return shipResult;
+  }
+
+  // Fallback to createPullRequest() from branch-manager.ts
+  console.log(chalk.yellow(`    /ck:ship failed — falling back to createPullRequest()`));
+  try {
+    const repo   = execSync('gh repo view --json nameWithOwner -q .nameWithOwner', { encoding: 'utf-8' }).trim();
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+    await createPullRequest(repo, issue.number, issue.title, 'feature', branch);
+    console.log(chalk.green(`    shipped via fallback`));
+    return { success: true, stdout: 'fallback PR', stderr: '', durationMs: 0 };
+  } catch (err) {
+    console.error(chalk.red(`    both /ck:ship and fallback failed`));
+    return { success: false, stdout: '', stderr: String(err), durationMs: 0 };
+  }
+}
+
 // ─── Execute one epic ─────────────────────────────────────────────────────────
 
 export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}): Promise<void> {
@@ -158,17 +191,31 @@ export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}
     }
 
     console.log(chalk.white(`\n  ► #${child.number}: ${child.title}`));
-    const pipeline: { name: Step; prompt: string }[] = [
-      { name: 'plan',   prompt: `/ck:plan --fast Implement #${child.number}: ${child.title}` },
-      { name: 'cook',   prompt: `/ck:cook --auto #${child.number}: ${child.title}` },
-      { name: 'test',   prompt: `/ck:test` },
-      { name: 'commit', prompt: `/ck:git cp` },
-    ];
 
+    // Build pipeline dynamically based on --hard mode
+    const pipeline: { name: string; fn: () => Promise<StepResult> }[] = [];
+
+    if (opts.hard) {
+      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --hard Implement #${child.number}: ${child.title}`,    opts) });
+      pipeline.push({ name: 'plan-red-team', fn: () => runStep('plan-red-team', `/ck:plan red-team #${child.number}: ${child.title}`,            opts) });
+    } else {
+      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --fast Implement #${child.number}: ${child.title}`,    opts) });
+    }
+
+    pipeline.push({ name: 'cook', fn: () => runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts) });
+    pipeline.push({ name: 'test', fn: () => runStep('test', `/ck:test`,                                         opts) });
+
+    if (opts.hard) {
+      pipeline.push({ name: 'predict', fn: () => runStep('predict', `/ck:predict #${child.number}: ${child.title}`, opts) });
+    }
+
+    pipeline.push({ name: 'ship', fn: () => shipIssue(child, opts) });
+
+    // Execute pipeline steps sequentially
     let allPassed = true;
-    for (const { name, prompt } of pipeline) {
+    for (const { name, fn } of pipeline) {
       const spinner = ora(`    ${name}...`).start();
-      const result  = await runStep(name, prompt, opts);
+      const result  = await fn();
       const dur     = (result.durationMs / 1000).toFixed(1);
       if (result.success) {
         spinner.succeed(chalk.green(`    ${name} ✓ (${dur}s)`));

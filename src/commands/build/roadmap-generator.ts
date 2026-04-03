@@ -1,8 +1,30 @@
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import ora from 'ora';
 import chalk from 'chalk';
+
+// ─── Model routing: generate step → claude model ─────────────────────────────
+
+const MODEL_MAP_GENERATE = {
+  brainstorm: 'claude-opus-4-5',    // deep creative thinking for scope exploration
+  plan:       'claude-opus-4-5',    // architectural reasoning for full roadmap
+  scenario:   'claude-sonnet-4-5',  // BDD test case generation per epic
+} as const;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface GenerateRoadmapOptions {
+  input:      string;
+  context?:   string;
+  epics?:     number;
+  dryRun?:    boolean;
+  outputDir?: string;
+  budget?:    number;
+  timeout?:   number;
+}
+
+// ─── Input resolver ───────────────────────────────────────────────────────────
 
 /**
  * Resolve input: if starts with @, read file contents; otherwise return as-is.
@@ -20,181 +42,116 @@ async function resolveInput(input: string): Promise<string> {
   return content;
 }
 
-/**
- * Convert a topic string to a URL-safe kebab-case slug (max 60 chars).
- */
-function toSlug(topic: string): string {
-  return topic
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60)
-    .replace(/-+$/, '');
-}
+// ─── Claude subprocess runner ─────────────────────────────────────────────────
 
 /**
- * Build the Claude prompt that requests a structured roadmap markdown.
+ * Spawn a Claude subprocess with a slash command prompt.
+ * Returns success/failure result.
  */
-function buildRoadmapPrompt(opts: { topic: string; context?: string; epics?: number }): string {
-  const epicHint = opts.epics
-    ? `Organize into exactly ${opts.epics} epics/phases.`
-    : 'Organize into a sensible number of epics/phases (typically 3–8).';
+function spawnClaudeStep(
+  prompt: string,
+  opts: { model: string; budget?: number; timeout?: number },
+): Promise<{ success: boolean; stderr: string }> {
+  return new Promise(resolve => {
+    const args = ['-p', prompt, '--model', opts.model, '--output-format', 'text', '--dangerously-skip-permissions'];
+    if (opts.budget) args.push('--max-budget-usd', String(opts.budget));
 
-  const contextSection = opts.context
-    ? `\n\n## Additional Context\n\n${opts.context}`
-    : '';
-
-  return `You are a senior software architect. Generate a detailed implementation roadmap for the following topic.
-
-## Topic
-
-${opts.topic}${contextSection}
-
-## Instructions
-
-${epicHint}
-
-Output ONLY valid markdown following this exact structure:
-
-\`\`\`
-# {Title} Implementation Roadmap
-
-**Date**: {YYYY-MM-DD}
-**Goal**: {One-sentence goal}
-
----
-
-## Architecture Overview
-
-{ASCII or markdown file tree showing key files/directories}
-
----
-
-## Phase 1 — {Epic Name}
-
-| # | Task | Status |
-|---|------|--------|
-| 1.1 | {Task description} | Pending |
-| 1.2 | {Task description} | Pending |
-
-## Phase 2 — {Epic Name}
-
-| # | Task | Status |
-|---|------|--------|
-| 2.1 | {Task description} | Pending |
-
-{...repeat for each phase...}
-
----
-
-## Summary
-
-| Phase | Epic | Status | Priority |
-|-------|------|--------|----------|
-| 1 | {Epic Name} | Pending | High |
-| 2 | {Epic Name} | Pending | High |
-\`\`\`
-
-Rules:
-- Every task must be concrete and actionable
-- Use "Pending" as the initial status for all tasks
-- Include file paths and component names where relevant
-- No prose outside the markdown structure
-- Output raw markdown, no code fences wrapping the entire document`;
-}
-
-/**
- * Spawn Claude CLI subprocess and return stdout.
- * Uses opus model with dangerously-skip-permissions (read-only brainstorm).
- * Timeout: 600s.
- */
-async function spawnClaudeForRoadmap(prompt: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const args = [
-      '-p', prompt,
-      '--model', 'claude-opus-4-5',
-      '--output-format', 'text',
-      '--dangerously-skip-permissions',
-    ];
-
-    const proc = spawn('claude', args, {
-      cwd: process.cwd(),
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
+    const proc = spawn('claude', args, { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'] });
+    let stderr = '', timedOut = false;
     let killTimer: ReturnType<typeof setTimeout> | undefined;
 
-    proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-    proc.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    proc.stderr.on('data', (c: Buffer) => { stderr += c.toString(); });
 
-    const timeoutTimer = setTimeout(() => {
+    const timeoutMs = (opts.timeout ?? 600) * 1_000;
+    const timer = setTimeout(() => {
       timedOut = true;
       proc.kill('SIGTERM');
       killTimer = setTimeout(() => proc.kill('SIGKILL'), 5_000);
-    }, 600_000);
+    }, timeoutMs);
 
-    proc.on('close', (code) => {
-      clearTimeout(timeoutTimer);
+    const finish = (code: number | null) => {
+      clearTimeout(timer);
       if (killTimer) clearTimeout(killTimer);
+      resolve({
+        success: !timedOut && code === 0,
+        stderr:  timedOut ? `Timed out after ${opts.timeout ?? 600}s` : stderr,
+      });
+    };
 
-      if (timedOut) return reject(new Error('Claude timed out after 600s'));
-      if (code !== 0) return reject(new Error(`Claude exited ${code}: ${stderr.trim()}`));
-      resolve(stdout);
-    });
-
-    proc.on('error', (err) => {
-      clearTimeout(timeoutTimer);
+    proc.on('close', finish);
+    proc.on('error', err => {
+      clearTimeout(timer);
       if (killTimer) clearTimeout(killTimer);
-      reject(err);
+      resolve({ success: false, stderr: err.message });
     });
   });
 }
 
-export interface GenerateRoadmapOptions {
-  input: string;
-  context?: string;
-  epics?: number;
-  dryRun?: boolean;
-  outputDir?: string;
-}
+// ─── Main generation pipeline ─────────────────────────────────────────────────
 
 /**
- * Main roadmap generation function.
- * Resolves input, spawns Claude opus, writes roadmap markdown to docs/.
+ * Generate a roadmap using a 3-step VividKit pipeline:
+ *   1. /ck:brainstorm — explore scope and identify features/epics
+ *   2. /ck:plan --hard — generate full implementation roadmap with deep analysis
+ *   3. /ck:scenario — generate BDD test scenarios per epic
  */
-export async function generateRoadmap(opts: GenerateRoadmapOptions): Promise<{ roadmapPath: string; content: string }> {
+export async function generateRoadmap(opts: GenerateRoadmapOptions): Promise<void> {
   const topic = await resolveInput(opts.input);
-  const context = opts.context ? await resolveInput(opts.context) : undefined;
-
-  const prompt = buildRoadmapPrompt({ topic, context, epics: opts.epics });
-
-  const spinner = ora('Generating roadmap (opus)...').start();
-  let content: string;
-
-  try {
-    content = await spawnClaudeForRoadmap(prompt);
-    spinner.succeed(chalk.green('Roadmap generated'));
-  } catch (err) {
-    spinner.fail(chalk.red('Roadmap generation failed'));
-    throw err;
-  }
+  const contextSection = opts.context ? ` Context: ${await resolveInput(opts.context)}` : '';
+  const epicHint = opts.epics ? ` Organize into exactly ${opts.epics} epics.` : '';
+  const subject = `${topic}${contextSection}${epicHint}`.slice(0, 500); // cap prompt length
 
   if (opts.dryRun) {
-    console.log(chalk.yellow('\n--- DRY RUN OUTPUT ---\n'));
-    console.log(content);
-    return { roadmapPath: '', content };
+    console.log(chalk.yellow('\n--- DRY RUN: would run 3-step generate pipeline ---'));
+    console.log(chalk.dim(`  1. /ck:brainstorm Analyze repo and identify features/epics for: ${subject}`));
+    console.log(chalk.dim(`  2. /ck:plan --hard Generate full implementation roadmap for: ${subject}`));
+    console.log(chalk.dim(`  3. /ck:scenario Generate BDD test scenarios for each epic in the roadmap`));
+    return;
   }
 
-  const slug = toSlug(topic.slice(0, 120)); // use first 120 chars of topic for slug
-  const outputDir = resolve(opts.outputDir ?? 'docs');
-  await mkdir(outputDir, { recursive: true });
+  const stepOpts = { budget: opts.budget, timeout: opts.timeout };
 
-  const roadmapPath = join(outputDir, `implement-roadmap-${slug}.md`);
-  await writeFile(roadmapPath, content, 'utf-8');
+  // Step 1: Brainstorm — explore scope and clarify ambiguity
+  const spinner1 = ora('Brainstorming scope (opus)...').start();
+  const r1 = await spawnClaudeStep(
+    `/ck:brainstorm Analyze repo and identify features/epics for: ${subject}`,
+    { model: MODEL_MAP_GENERATE.brainstorm, ...stepOpts },
+  );
+  if (r1.success) {
+    spinner1.succeed(chalk.green('Brainstorm complete'));
+  } else {
+    spinner1.fail(chalk.red('Brainstorm failed'));
+    if (r1.stderr) console.error(chalk.dim(r1.stderr.slice(0, 200)));
+    throw new Error('generate pipeline failed at brainstorm step');
+  }
 
-  console.log(chalk.green(`✓ Roadmap saved to: ${roadmapPath}`));
-  return { roadmapPath, content };
+  // Step 2: Plan --hard — generate full roadmap with deep analysis
+  const spinner2 = ora('Generating roadmap with /ck:plan --hard (opus)...').start();
+  const r2 = await spawnClaudeStep(
+    `/ck:plan --hard Generate implementation roadmap for: ${subject}`,
+    { model: MODEL_MAP_GENERATE.plan, ...stepOpts },
+  );
+  if (r2.success) {
+    spinner2.succeed(chalk.green('Roadmap generated'));
+  } else {
+    spinner2.fail(chalk.red('Roadmap generation failed'));
+    if (r2.stderr) console.error(chalk.dim(r2.stderr.slice(0, 200)));
+    throw new Error('generate pipeline failed at plan step');
+  }
+
+  // Step 3: Scenario — generate BDD test cases per epic
+  const spinner3 = ora('Generating test scenarios with /ck:scenario (sonnet)...').start();
+  const r3 = await spawnClaudeStep(
+    `/ck:scenario Generate BDD test scenarios for each epic in the roadmap`,
+    { model: MODEL_MAP_GENERATE.scenario, ...stepOpts },
+  );
+  if (r3.success) {
+    spinner3.succeed(chalk.green('Test scenarios generated'));
+  } else {
+    spinner3.fail(chalk.red('Scenario generation failed'));
+    if (r3.stderr) console.error(chalk.dim(r3.stderr.slice(0, 200)));
+    throw new Error('generate pipeline failed at scenario step');
+  }
+
+  console.log(chalk.green('\n✓ Generate pipeline complete: brainstorm → roadmap → scenarios'));
 }
