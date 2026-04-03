@@ -117,7 +117,7 @@ export async function executeTestFlow(
   // 1. /ck:scenario — advisory, skip if no body
   if (issue.body) {
     const scenarioResult = await invokeClaudePhase(
-      buildScenarioPrompt(issue), 'scenario', classified.modelOverride, config.autoMode, config.cwd,
+      buildScenarioPrompt(issue), 'scenario', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
     );
     results.push(scenarioResult);
     scenarioStatus = 'generated';
@@ -125,7 +125,7 @@ export async function executeTestFlow(
 
   // 2. /ck:test — unit + integration, FAIL blocks pipeline
   const testResult = await invokeClaudePhase(
-    buildTestPrompt(issue), 'test', classified.modelOverride, config.autoMode, config.cwd,
+    buildTestPrompt(issue), 'test', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
   );
   results.push(testResult);
   const testPassed = testResult.success && parseTestResult(testResult.output ?? '');
@@ -140,7 +140,7 @@ export async function executeTestFlow(
   // 3. /ck:test --ui — advisory, only for frontend/ui labels
   if (classified.flags.designReview) {
     const uiResult = await invokeClaudePhase(
-      buildUiTestPrompt(issue), 'ui_test', classified.modelOverride, config.autoMode, config.cwd,
+      buildUiTestPrompt(issue), 'ui_test', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
     );
     results.push(uiResult);
     uiStatus = parseUiTestResult(uiResult.output ?? '') ? 'PASS' : 'FAIL';

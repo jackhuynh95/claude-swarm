@@ -72,5 +72,7 @@ function detectRouteFlags(issue: GHIssue): RouteFlags {
     ciFailure: labelNames.has('ci') || labelNames.has('ci-failure') || labelNames.has('pipeline'),
     hasLogs: /```[\s\S]{50,}```|stack\s?trace|at\s+\S+\s+\(|error\s+log/i.test(body),
     quickFix: labelNames.has('quick') || labelNames.has('trivial') || labelNames.has('typo'),
+    parallelBugs: labelNames.has('parallel') || labelNames.has('multi-bug')
+      || /multiple\s+(bugs?|issues?|errors?)/i.test(body),
   };
 }

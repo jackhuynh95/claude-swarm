@@ -80,6 +80,8 @@ buildCommand
   .option('--permission-mode <mode>', 'Permission mode: auto or skip')
   .option('--timeout <s>', 'Timeout per step in seconds (default: 600)', parseInt)
   .option('--dry-run', 'Show what would run without executing')
+  .option('--model <model>', 'Override model for all steps (opus|sonnet|haiku)')
+  .option('--effort <level>', 'Override effort for all steps (low|medium|high|max)')
   .action(async (opts) => {
     const executorOpts = {
       auto:           opts.auto,
@@ -90,6 +92,8 @@ buildCommand
       dryRun:         opts.dryRun,
       fromIssue:      opts.fromIssue,
       fromEpic:       opts.from,
+      model:          opts.model,
+      effort:         opts.effort,
     };
     if (opts.all) {
       await executeAllEpics(executorOpts);
@@ -109,6 +113,8 @@ buildCommand
   .option('--permission-mode <mode>', 'Permission mode: auto or skip')
   .option('--timeout <s>', 'Timeout per call in seconds', parseInt)
   .option('--dry-run', 'Show what would run')
+  .option('--model <model>', 'Override model for all steps (opus|sonnet|haiku)')
+  .option('--effort <level>', 'Override effort for all steps (low|medium|high|max)')
   .action(async (opts) => {
     if (opts.epic == null) { console.error('Error: --epic <n> is required'); process.exit(1); }
     await planEpicIssues(opts.epic, {
@@ -116,6 +122,8 @@ buildCommand
       permissionMode: opts.permissionMode,
       timeout: opts.timeout,
       dryRun: opts.dryRun,
+      model: opts.model,
+      effort: opts.effort,
     });
   });
 
@@ -128,6 +136,8 @@ buildCommand
   .option('--permission-mode <mode>', 'Permission mode: auto or skip')
   .option('--timeout <s>', 'Timeout per call in seconds', parseInt)
   .option('--dry-run', 'Show what would run')
+  .option('--model <model>', 'Override model for all steps (opus|sonnet|haiku)')
+  .option('--effort <level>', 'Override effort for all steps (low|medium|high|max)')
   .action(async (opts) => {
     if (opts.epic == null) { console.error('Error: --epic <n> is required'); process.exit(1); }
     await cookEpicIssues(opts.epic, {
@@ -136,6 +146,8 @@ buildCommand
       permissionMode: opts.permissionMode,
       timeout: opts.timeout,
       dryRun: opts.dryRun,
+      model: opts.model,
+      effort: opts.effort,
     });
   });
 

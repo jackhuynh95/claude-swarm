@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { ClassifiedIssue, PhaseResult, RouteFlags } from '../types.js';
+import type { ClassifiedIssue, PhaseResult, RouteFlags, ModelOverrides, PhaseModelConfig } from '../types.js';
 import { invokeClaudePhase } from './claude-invoker.js';
 import { transitionLabel, addComment } from './label-manager.js';
 import { createBranch, commitChanges } from './branch-manager.js';
@@ -14,6 +14,8 @@ export interface DebugFlowConfig {
   repo: string;
   maxCycles: number;
   autoMode: boolean;
+  configModels?: Record<string, PhaseModelConfig>;
+  cliOverrides?: ModelOverrides;
   cwd?: string;
 }
 
@@ -25,6 +27,7 @@ const MAX_BUILD_RETRIES = 3;
 function buildFixFlags(flags: RouteFlags): string {
   if (flags.hardMode) return '--hard';
   if (flags.securityScan) return '--security';
+  if (flags.parallelBugs) return '--parallel';
   if (flags.ciFailure) return '--ci';
   if (flags.designReview) return '--ui';
   if (flags.hasLogs) return '--logs';
@@ -93,7 +96,7 @@ export async function executeDebugFlow(
 
     // Single /ck:fix call (includes scout+diagnose+assess+fix+verify+prevent)
     const fixResult = await invokeClaudePhase(
-      fixPrompt, 'fix', classified.modelOverride, config.autoMode, cwd,
+      fixPrompt, 'fix', config.configModels, config.cliOverrides, config.autoMode, cwd,
     );
     results.push(fixResult);
     budget.recordInvocation(issue.number, fixResult);
@@ -110,7 +113,7 @@ export async function executeDebugFlow(
       if (buildAttempt < MAX_BUILD_RETRIES - 1) {
         const retryPrompt = `/ck:fix --auto Fix build errors from previous attempt. Original issue #${issue.number}: ${issue.title}`;
         const retryResult = await invokeClaudePhase(
-          retryPrompt, 'fix', classified.modelOverride, config.autoMode, cwd,
+          retryPrompt, 'fix', config.configModels, config.cliOverrides, config.autoMode, cwd,
         );
         results.push(retryResult);
         budget.recordInvocation(issue.number, retryResult);
@@ -130,7 +133,7 @@ export async function executeDebugFlow(
         const psPrompt = `/ck:problem-solving when-stuck Stuck fixing #${issue.number}: ${issue.title}. ` +
           `${config.maxCycles - cycle - 1} retries left. Last output:\n${fixResult.output ?? '(none)'}`;
         const psResult = await invokeClaudePhase(
-          psPrompt, 'debug', classified.modelOverride, config.autoMode, cwd,
+          psPrompt, 'debug', config.configModels, config.cliOverrides, config.autoMode, cwd,
         );
         results.push(psResult);
         budget.recordInvocation(issue.number, psResult);
@@ -147,7 +150,7 @@ export async function executeDebugFlow(
       const psPrompt = `/ck:problem-solving when-stuck All ${config.maxCycles} fix cycles exhausted for #${issue.number}: ${issue.title}. ` +
         `Last output:\n${lastFix?.output ?? '(none)'}`;
       const psResult = await invokeClaudePhase(
-        psPrompt, 'debug', classified.modelOverride, config.autoMode, cwd,
+        psPrompt, 'debug', config.configModels, config.cliOverrides, config.autoMode, cwd,
       );
       results.push(psResult);
       budget.recordInvocation(issue.number, psResult);

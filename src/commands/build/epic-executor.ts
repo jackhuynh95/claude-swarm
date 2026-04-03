@@ -2,19 +2,31 @@ import { spawn, execSync } from 'node:child_process';
 import chalk from 'chalk';
 import ora from 'ora';
 import { createPullRequest } from '../watch/phases/branch-manager.js';
+import { getPhaseConfig } from '../watch/phases/model-router.js';
+import { loadProjectConfig } from '../../config-resolver.js';
+import type { ClaudeModel, EffortLevel, ModelOverrides, PhaseModelConfig, PhaseType } from '../watch/types.js';
 
-// ─── Model routing: step → claude model ─────────────────────────────────────
+type Step = 'plan' | 'plan-red-team' | 'cook' | 'test' | 'predict' | 'ship';
 
-const MODEL_MAP = {
-  plan:            'claude-opus-4-5',
-  'plan-red-team': 'claude-opus-4-5',
-  cook:            'claude-sonnet-4-5',
-  test:            'claude-sonnet-4-5',
-  predict:         'claude-opus-4-5',
-  ship:            'claude-sonnet-4-5',
-} as const;
+/** Map builder step names → PhaseType for model-router lookup */
+const STEP_TO_PHASE: Record<Step, PhaseType> = {
+  plan:            'plan',
+  'plan-red-team': 'plan_redteam',
+  cook:            'cook',
+  test:            'test',
+  predict:         'predict',
+  ship:            'ship',
+};
 
-type Step = keyof typeof MODEL_MAP;
+/** Map short model name → full Claude model ID */
+function toModelId(model: ClaudeModel): string {
+  const ids: Record<ClaudeModel, string> = {
+    opus:   'claude-opus-4-6',
+    sonnet: 'claude-sonnet-4-6',
+    haiku:  'claude-haiku-4-5-20251001',
+  };
+  return ids[model];
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,6 +39,8 @@ export interface ExecutorOptions {
   dryRun?:         boolean;
   fromIssue?:      number;          // skip child issues < this number
   fromEpic?:       number;          // skip epics < this number (for --all)
+  model?:          string;          // CLI --model override (applies to all steps)
+  effort?:         string;          // CLI --effort override (applies to all steps)
 }
 
 interface StepResult {
@@ -130,9 +144,21 @@ function spawnClaude(
 
 // ─── Single-step runner ───────────────────────────────────────────────────────
 
-async function runStep(step: Step, prompt: string, opts: ExecutorOptions): Promise<StepResult> {
+async function runStep(
+  step: Step,
+  prompt: string,
+  opts: ExecutorOptions,
+  configModels?: Record<string, PhaseModelConfig>,
+): Promise<StepResult> {
+  const cliOverrides: ModelOverrides = {};
+  if (opts.model) cliOverrides.model = opts.model as ClaudeModel;
+  if (opts.effort) cliOverrides.effort = opts.effort as EffortLevel;
+
+  const phase = STEP_TO_PHASE[step];
+  const config = getPhaseConfig(phase, configModels, cliOverrides);
+
   return spawnClaude(prompt, {
-    model:          MODEL_MAP[step],
+    model:          toModelId(config.model),
     budget:         opts.budget,
     permissionMode: opts.permissionMode,
     timeout:        opts.timeout,
@@ -141,9 +167,14 @@ async function runStep(step: Step, prompt: string, opts: ExecutorOptions): Promi
 
 // ─── Ship step: /ck:ship --official with createPullRequest() fallback ─────────
 
-async function shipIssue(issue: EpicChild, opts: ExecutorOptions): Promise<StepResult> {
+async function shipIssue(issue: EpicChild, opts: ExecutorOptions, configModels?: Record<string, PhaseModelConfig>): Promise<StepResult> {
+  const cliOverrides: ModelOverrides = {};
+  if (opts.model) cliOverrides.model = opts.model as ClaudeModel;
+  if (opts.effort) cliOverrides.effort = opts.effort as EffortLevel;
+  const shipConfig = getPhaseConfig('ship', configModels, cliOverrides);
+
   const shipResult = await spawnClaude('/ck:ship --official', {
-    model:          MODEL_MAP.ship,
+    model:          toModelId(shipConfig.model),
     budget:         opts.budget,
     permissionMode: opts.permissionMode,
     timeout:        opts.timeout ?? 600,
@@ -176,6 +207,9 @@ export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}
   if (children.length === 0) { console.log(chalk.yellow('  No child issues found')); return; }
   console.log(chalk.dim(`  Found ${children.length} issue(s)`));
 
+  // Load config models once per epic execution
+  const configModels = loadProjectConfig().models;
+
   for (const child of children) {
     if (opts.fromIssue && child.number < opts.fromIssue) {
       console.log(chalk.dim(`  ⟶ #${child.number} skipped (--from-issue ${opts.fromIssue})`));
@@ -196,20 +230,20 @@ export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}
     const pipeline: { name: string; fn: () => Promise<StepResult> }[] = [];
 
     if (opts.hard) {
-      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --hard Implement #${child.number}: ${child.title}`,    opts) });
-      pipeline.push({ name: 'plan-red-team', fn: () => runStep('plan-red-team', `/ck:plan red-team #${child.number}: ${child.title}`,            opts) });
+      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --hard Implement #${child.number}: ${child.title}`,    opts, configModels) });
+      pipeline.push({ name: 'plan-red-team', fn: () => runStep('plan-red-team', `/ck:plan red-team #${child.number}: ${child.title}`,            opts, configModels) });
     } else {
-      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --fast Implement #${child.number}: ${child.title}`,    opts) });
+      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --fast Implement #${child.number}: ${child.title}`,    opts, configModels) });
     }
 
-    pipeline.push({ name: 'cook', fn: () => runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts) });
-    pipeline.push({ name: 'test', fn: () => runStep('test', `/ck:test`,                                         opts) });
+    pipeline.push({ name: 'cook', fn: () => runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts, configModels) });
+    pipeline.push({ name: 'test', fn: () => runStep('test', `/ck:test`,                                         opts, configModels) });
 
     if (opts.hard) {
-      pipeline.push({ name: 'predict', fn: () => runStep('predict', `/ck:predict #${child.number}: ${child.title}`, opts) });
+      pipeline.push({ name: 'predict', fn: () => runStep('predict', `/ck:predict #${child.number}: ${child.title}`, opts, configModels) });
     }
 
-    pipeline.push({ name: 'ship', fn: () => shipIssue(child, opts) });
+    pipeline.push({ name: 'ship', fn: () => shipIssue(child, opts, configModels) });
 
     // Execute pipeline steps sequentially
     let allPassed = true;
@@ -251,10 +285,11 @@ export async function executeAllEpics(opts: ExecutorOptions = {}): Promise<void>
 export async function planEpicIssues(epicNumber: number, opts: ExecutorOptions = {}): Promise<void> {
   const children = fetchEpicChildren(epicNumber).filter(c => !isIssueClosed(c.number));
   console.log(chalk.blue(`\n▶ Planning ${children.length} issue(s) in epic #${epicNumber}`));
+  const configModels = loadProjectConfig().models;
   for (const child of children) {
     if (opts.dryRun) { console.log(chalk.cyan(`  [DRY RUN] /ck:plan --fast Implement #${child.number}: ${child.title}`)); continue; }
     const spinner = ora(`  #${child.number}: ${child.title}`).start();
-    const result  = await runStep('plan', `/ck:plan --fast Implement #${child.number}: ${child.title}`, opts);
+    const result  = await runStep('plan', `/ck:plan --fast Implement #${child.number}: ${child.title}`, opts, configModels);
     result.success ? spinner.succeed() : spinner.fail(chalk.red(result.stderr.slice(0, 120)));
   }
 }
@@ -262,10 +297,11 @@ export async function planEpicIssues(epicNumber: number, opts: ExecutorOptions =
 export async function cookEpicIssues(epicNumber: number, opts: ExecutorOptions = {}): Promise<void> {
   const children = fetchEpicChildren(epicNumber).filter(c => !isIssueClosed(c.number));
   console.log(chalk.blue(`\n▶ Cooking ${children.length} issue(s) in epic #${epicNumber}`));
+  const configModels = loadProjectConfig().models;
   for (const child of children) {
     if (opts.dryRun) { console.log(chalk.cyan(`  [DRY RUN] /ck:cook --auto #${child.number}: ${child.title}`)); continue; }
     const spinner = ora(`  #${child.number}: ${child.title}`).start();
-    const result  = await runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts);
+    const result  = await runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts, configModels);
     result.success ? spinner.succeed() : spinner.fail(chalk.red(result.stderr.slice(0, 120)));
   }
 }

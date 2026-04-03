@@ -8,8 +8,8 @@
 |---|---|---|
 | `--max-budget-usd` | `--max-budget-usd 3.00` | Hard stop when spending reaches USD amount |
 | `--max-turns` | `--max-turns 5` | Limit agentic loop iterations |
-| `--model` | `--model haiku\|sonnet\|opus` | Model tier selection |
-| `--effort` | `--effort low\|medium\|high\|max` | Reasoning depth (low=cheapest) |
+| `--model` | `--model haiku\|sonnet\|opus` | Model tier selection (global across all phases) |
+| `--effort` | `--effort low\|medium\|high\|max` | Reasoning depth (low=cheapest; applies to all phases) |
 | `--bare` | `--bare` | Skip hooks, MCP, skills, CLAUDE.md (faster startup, fewer tokens) |
 | `--fallback-model` | `--fallback-model sonnet` | Auto-fallback when primary overloaded |
 
@@ -29,6 +29,56 @@ medium → baseline (default)
 high   → ~30-50% token increase, deeper reasoning
 max    → highest cost, no limit (opus only)
 ```
+
+---
+
+## claude-swarm Model & Effort Routing
+
+The `claude-swarm watch`, `build run`, `build plan`, and `build cook` commands support model and effort overrides:
+
+| Flag | What It Does | Example | Default |
+|---|---|---|---|
+| `--model <model>` | Override model for all phases/steps | `--model sonnet` | Per-phase config |
+| `--effort <level>` | Override effort for all phases/steps | `--effort low` | Per-phase config |
+
+**Override priority:** CLI flag > `.claude-swarm.json` models field > built-in defaults.
+
+**Supported values:**
+- Models: `opus`, `sonnet`, `haiku`
+- Efforts: `low`, `medium`, `high`, `max`
+
+**Examples:**
+
+```bash
+# Global cost optimization: all phases use sonnet + low effort
+claude-swarm watch --auto --model sonnet --effort low
+claude-swarm build run --epic 42 --auto --model sonnet --effort low
+
+# Override just effort (keep per-phase model routing from config)
+claude-swarm watch --auto --effort low
+
+# Deep analysis mode: use opus + max effort
+claude-swarm build plan --epic 42 --model opus --effort max
+```
+
+### Per-Phase Configuration (`.claude-swarm.json`)
+
+Configure model/effort per phase in `.claude-swarm.json`:
+
+```json
+{
+  "models": {
+    "plan": { "model": "opus", "effort": "high" },
+    "cook": { "model": "sonnet", "effort": "medium" },
+    "fix": { "model": "sonnet", "effort": "medium" },
+    "test": { "model": "sonnet", "effort": "low" },
+    "security": { "model": "sonnet", "effort": "medium" },
+    "red-team": { "model": "opus", "effort": "high" }
+  }
+}
+```
+
+CLI `--model` and `--effort` flags override these per-phase settings globally.
 
 ---
 

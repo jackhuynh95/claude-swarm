@@ -1,4 +1,4 @@
-import type { ClassifiedIssue, PhaseResult } from '../types.js';
+import type { ClassifiedIssue, PhaseResult, ModelOverrides, PhaseModelConfig } from '../types.js';
 import { executeDesignReview, type DesignReviewConfig } from './design-reviewer.js';
 import { executeTestFlow, type TestFlowConfig } from './test-flow.js';
 import { executeSlackReport, type SlackReporterConfig } from './slack-reporter.js';
@@ -15,6 +15,8 @@ export interface PostShipConfig {
   baseUrl?: string;           // E2E base URL (undefined = skip E2E)
   e2eScenarios?: string[];
   vaultPath: string;          // obsidian-vault path
+  configModels?: Record<string, PhaseModelConfig>;
+  cliOverrides?: ModelOverrides;
   cwd?: string;
   redTeam?: boolean;          // kept for config compat, not used in new pipeline
 }
@@ -109,14 +111,14 @@ export async function executePostShip(
 
   // 3. Scout — edge case discovery, always runs, advisory
   const scoutResult = await invokeClaudePhase(
-    buildScoutPrompt(issue), 'scout', classified.modelOverride, config.autoMode, config.cwd,
+    buildScoutPrompt(issue), 'scout', config.configModels, config.cliOverrides, config.autoMode, config.cwd,
   );
   results.push(scoutResult);
 
   // 4. Predict — only for hardMode issues (5-persona impact debate)
   if (classified.flags.hardMode) {
     const predictResult = await invokeClaudePhase(
-      buildPredictPrompt(issue), 'predict', classified.modelOverride, config.autoMode, config.cwd,
+      buildPredictPrompt(issue), 'predict', config.configModels, config.cliOverrides, config.autoMode, config.cwd,
     );
     results.push(predictResult);
   }
@@ -128,7 +130,8 @@ export async function executePostShip(
   const shipPhaseResult = await invokeClaudePhase(
     buildShipPrompt(issue, config.branch, config.repo),
     'ship',
-    classified.modelOverride,
+    config.configModels,
+    config.cliOverrides,
     config.autoMode,
     config.cwd,
   );
@@ -204,7 +207,7 @@ export async function executePostShip(
   // 10. AI-native docs generation — best-effort
   const llmsPrompt = `/ck:llms Generate llms.txt for AI-native codebase comprehension after shipping #${issue.number}`;
   const llmsResult = await invokeClaudePhase(
-    llmsPrompt, 'docs', classified.modelOverride, config.autoMode, config.cwd,
+    llmsPrompt, 'docs', config.configModels, config.cliOverrides, config.autoMode, config.cwd,
   );
   results.push(llmsResult);
 

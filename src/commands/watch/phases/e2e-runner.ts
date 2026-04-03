@@ -61,7 +61,7 @@ export async function executeE2e(
   const prompt = buildE2ePrompt(issue, config.baseUrl, scenarios);
 
   const phaseResult = await invokeClaudePhase(
-    prompt, 'e2e', classified.modelOverride, config.autoMode, config.cwd,
+    prompt, 'e2e', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
   );
 
   const passed = parseE2eResult(phaseResult.output ?? '');

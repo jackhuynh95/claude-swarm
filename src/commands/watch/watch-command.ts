@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { GHIssue, PhaseResult, WatchConfig } from './types.js';
+import type { GHIssue, PhaseResult, WatchConfig, ModelOverrides, PhaseModelConfig, ClaudeModel, EffortLevel } from './types.js';
 import { classifyIssue } from './phases/issue-router.js';
 import { executeDebugFlow } from './phases/debug-flow.js';
 import { executeShipFlow } from './phases/ship-flow.js';
@@ -27,9 +27,15 @@ export const watchCommand = new Command('watch')
   .option('--red-team', 'Enable adversarial red-team verification', false)
   .option('--use-team', 'Use /ck:team for parallel agent execution', false)
   .option('--dry-run', 'Fetch and classify issues without executing flows', false)
+  .option('--model <model>', 'Override model for all phases (opus|sonnet|haiku)')
+  .option('--effort <level>', 'Override effort for all phases (low|medium|high|max)')
   .action(async (options) => {
     // Resolve repo: CLI flag > .claude-swarm.json > git remote
     const projectConfig = loadProjectConfig();
+    const configModels = projectConfig.models;
+    const cliOverrides: ModelOverrides = {};
+    if (options.model) cliOverrides.model = options.model as ClaudeModel;
+    if (options.effort) cliOverrides.effort = options.effort as EffortLevel;
     const repo = resolveRepo(options.repo);
     if (!repo) {
       console.error('[watch] Error: Could not detect repo. Use --repo or add .claude-swarm.json');
@@ -52,8 +58,8 @@ export const watchCommand = new Command('watch')
     if (options.dryRun) console.log('[watch] DRY RUN — will classify but not execute');
 
     // Run first poll immediately, then on interval
-    await pollAndDispatch(config, options);
-    setInterval(() => pollAndDispatch(config, options), config.intervalMs);
+    await pollAndDispatch(config, { ...options, configModels, cliOverrides });
+    setInterval(() => pollAndDispatch(config, { ...options, configModels, cliOverrides }), config.intervalMs);
   });
 
 /**
@@ -61,13 +67,17 @@ export const watchCommand = new Command('watch')
  */
 async function pollAndDispatch(
   config: WatchConfig,
-  options: { auto: boolean; vault?: string; baseUrl?: string; redTeam: boolean; useTeam: boolean; dryRun: boolean },
+  options: {
+    auto: boolean; vault?: string; baseUrl?: string; redTeam: boolean; useTeam: boolean; dryRun: boolean;
+    configModels?: Record<string, PhaseModelConfig>;
+    cliOverrides?: ModelOverrides;
+  },
 ): Promise<void> {
   try {
     // Watzup — quick recent changes summary before processing issues
     const watzupResult = await invokeClaudePhase(
       '/ck:watzup Review recent git changes and summarize current project state.',
-      'watzup', undefined, options.auto,
+      'watzup', options.configModels, options.cliOverrides, options.auto,
     );
     if (watzupResult.output) {
       console.log(`[watch] watzup: ${watzupResult.output.slice(0, 200)}`);
@@ -92,7 +102,7 @@ async function pollAndDispatch(
     if (issues.length > 0 && !options.dryRun) {
       const retroResult = await invokeClaudePhase(
         `/ck:retro Sprint retrospective: ${issues.length} issue(s) processed this cycle. Summarize what was done, what went well, what needs improvement.`,
-        'retro', undefined, options.auto,
+        'retro', options.configModels, options.cliOverrides, options.auto,
       );
       if (retroResult.output) {
         console.log(`[watch] retro: ${retroResult.output.slice(0, 200)}`);
@@ -109,7 +119,11 @@ async function pollAndDispatch(
 async function processIssue(
   issue: GHIssue,
   config: WatchConfig,
-  options: { auto: boolean; vault?: string; baseUrl?: string; redTeam: boolean; useTeam: boolean; dryRun: boolean },
+  options: {
+    auto: boolean; vault?: string; baseUrl?: string; redTeam: boolean; useTeam: boolean; dryRun: boolean;
+    configModels?: Record<string, PhaseModelConfig>;
+    cliOverrides?: ModelOverrides;
+  },
 ): Promise<void> {
   const classified = classifyIssue(issue);
   console.log(`[watch] #${issue.number} "${issue.title}" → ${classified.flowType} (${classified.issueType})`);
@@ -134,11 +148,19 @@ async function processIssue(
     let flowResults: PhaseResult[];
     let branch: string | undefined;
 
+    // Merge issue-level model override (hard label) with CLI overrides; CLI wins
+    const issueOverrides: ModelOverrides = {
+      model: options.cliOverrides?.model ?? classified.modelOverride,
+      effort: options.cliOverrides?.effort,
+    };
+
     if (classified.flowType === 'debug-flow') {
       flowResults = await executeDebugFlow(classified, {
         repo: config.repo,
         maxCycles: 3,
         autoMode: options.auto,
+        configModels: options.configModels,
+        cliOverrides: issueOverrides,
       });
     } else {
       flowResults = await executeShipFlow(classified, {
@@ -146,6 +168,8 @@ async function processIssue(
         autoMode: options.auto,
         noTest: classified.noTest,
         vaultPath: options.vault,
+        configModels: options.configModels,
+        cliOverrides: issueOverrides,
       });
     }
 
@@ -161,6 +185,8 @@ async function processIssue(
         baseUrl: options.baseUrl,
         vaultPath: options.vault,
         redTeam: options.redTeam,
+        configModels: options.configModels,
+        cliOverrides: issueOverrides,
       }, flowResults);
 
       const allPhases = [...flowResults, ...postShipResult.results];

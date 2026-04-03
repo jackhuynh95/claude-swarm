@@ -26,6 +26,18 @@ export type IssueState =
 export type ClaudeModel = 'opus' | 'sonnet' | 'haiku';
 export type EffortLevel = 'low' | 'medium' | 'high' | 'max';
 
+/** Per-phase model+effort override from .claude-swarm.json */
+export interface PhaseModelConfig {
+  model?: ClaudeModel;
+  effort?: EffortLevel;
+}
+
+/** Global CLI overrides — apply to ALL phases */
+export interface ModelOverrides {
+  model?: ClaudeModel;
+  effort?: EffortLevel;
+}
+
 // Phase configuration (from model-router)
 export interface PhaseConfig {
   model: ClaudeModel;
@@ -38,7 +50,7 @@ export interface PhaseConfig {
 // Phase types (keys for model-router lookup)
 export type PhaseType =
   | 'brainstorm' | 'plan' | 'plan_redteam' | 'debug' | 'clarify'
-  | 'fix' | 'test' | 'e2e' | 'verify' | 'security'
+  | 'fix' | 'cook' | 'test' | 'e2e' | 'verify' | 'security'
   | 'security_review' | 'security_stride'
   | 'scout' | 'code_review'
   | 'scenario' | 'ui_test'
@@ -66,6 +78,7 @@ export interface RouteFlags {
   ciFailure: boolean;        // "ci"/"ci-failure"/"pipeline" label
   hasLogs: boolean;          // issue body contains log/stacktrace content
   quickFix: boolean;         // "quick"/"trivial"/"typo" label
+  parallelBugs: boolean;     // "parallel"/"multi-bug" label or multiple bugs in body
 }
 
 // Per-issue budget limits for unattended runs

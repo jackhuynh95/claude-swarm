@@ -57,7 +57,7 @@ Send a concise Slack message (2-3 lines) summarizing the issue status for the te
 
   console.log(`Sending Slack report for issue #${issueNumber}...`);
 
-  const result = await invokeClaudePhase(prompt, 'slack_report', modelOverride, true);
+  const result = await invokeClaudePhase(prompt, 'slack_report', undefined, modelOverride ? { model: modelOverride } : undefined, true);
 
   if (!result.success) {
     console.error(`Error: ${result.error ?? 'Unknown error'}`);

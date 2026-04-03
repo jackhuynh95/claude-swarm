@@ -123,7 +123,7 @@ export async function executeSecurityFlow(
 
   // 1. /ck:security-scan — OWASP + secrets + deps, FAIL blocks pipeline
   const scanResult = await invokeClaudePhase(
-    buildScanPrompt(issue), 'security', classified.modelOverride, config.autoMode, config.cwd,
+    buildScanPrompt(issue), 'security', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
   );
   results.push(scanResult);
   const scanPassed = scanResult.success && parseSecurityResult(scanResult.output ?? '');
@@ -138,7 +138,7 @@ export async function executeSecurityFlow(
 
   // 2. /ck:code-review --security — deep security review, advisory
   const reviewResult = await invokeClaudePhase(
-    buildReviewPrompt(issue), 'security_review', classified.modelOverride, config.autoMode, config.cwd,
+    buildReviewPrompt(issue), 'security_review', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
   );
   results.push(reviewResult);
   const reviewPassed = reviewResult.success && parseSecurityResult(reviewResult.output ?? '');
@@ -147,7 +147,7 @@ export async function executeSecurityFlow(
 
   // 3. /ck:security — STRIDE threat modeling, advisory
   const strideResult = await invokeClaudePhase(
-    buildStridePrompt(issue), 'security_stride', classified.modelOverride, config.autoMode, config.cwd,
+    buildStridePrompt(issue), 'security_stride', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
   );
   results.push(strideResult);
   const stridePassed = strideResult.success && parseSecurityResult(strideResult.output ?? '');
@@ -162,7 +162,7 @@ export async function executeSecurityFlow(
   if (hasVulns) {
     const fixResult = await invokeClaudePhase(
       buildFixPrompt(issue, findings.join('\n\n')),
-      'fix', classified.modelOverride, config.autoMode, config.cwd,
+      'fix', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
     );
     results.push(fixResult);
     fixStatus = fixResult.success ? 'applied' : 'failed';

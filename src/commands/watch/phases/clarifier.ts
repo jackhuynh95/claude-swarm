@@ -64,7 +64,7 @@ async function analyzeClarityNeed(
   ].join('\n');
 
   const result = await invokeClaudePhase(
-    prompt, 'clarify', classified.modelOverride, autoMode,
+    prompt, 'clarify', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, autoMode,
   );
 
   const output = result.output ?? '';

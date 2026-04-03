@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import type { PhaseModelConfig } from './commands/watch/types.js';
 
 const CONFIG_FILE = '.claude-swarm.json';
 
@@ -13,6 +14,7 @@ export interface ProjectConfig {
   auto?: boolean;
   redTeam?: boolean;
   useTeam?: boolean;
+  models?: Record<string, PhaseModelConfig>;  // per-phase model+effort overrides
 }
 
 /**

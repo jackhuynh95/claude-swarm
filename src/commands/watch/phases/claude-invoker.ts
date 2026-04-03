@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import type { PhaseConfig, PhaseResult, PhaseType, ClaudeModel } from '../types.js';
+import type { PhaseConfig, PhaseResult, PhaseType, ModelOverrides, PhaseModelConfig } from '../types.js';
 import { getPhaseConfig } from './model-router.js';
 
 export interface InvokeOptions {
@@ -75,17 +75,18 @@ export function invokeClaude(options: InvokeOptions): Promise<PhaseResult> {
 }
 
 /**
- * Phase-aware wrapper: resolves PhaseConfig from model-router,
+ * Phase-aware wrapper: resolves PhaseConfig via 3-level override chain,
  * invokes Claude, and stamps the correct phase on the result.
  */
 export async function invokeClaudePhase(
   prompt: string,
   phase: PhaseType,
-  modelOverride?: ClaudeModel,
+  configModels?: Record<string, PhaseModelConfig>,
+  cliOverrides?: ModelOverrides,
   autoMode?: boolean,
   cwd?: string,
 ): Promise<PhaseResult> {
-  const config = getPhaseConfig(phase, modelOverride);
+  const config = getPhaseConfig(phase, configModels, cliOverrides);
   const result = await invokeClaude({ prompt, config, autoMode, cwd });
   return { ...result, phase };
 }

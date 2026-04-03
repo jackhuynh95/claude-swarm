@@ -24,7 +24,7 @@ export async function executeSlackReport(
     const prompt = buildSlackPrompt(classified, summary);
 
     const result = await invokeClaudePhase(
-      prompt, 'slack_report', undefined, config.autoMode, config.cwd,
+      prompt, 'slack_report', undefined, undefined, config.autoMode, config.cwd,
     );
     return result;
   } catch (err) {

@@ -1,4 +1,4 @@
-import type { PhaseType, PhaseConfig, ClaudeModel } from '../types.js';
+import type { PhaseType, PhaseConfig, ModelOverrides, PhaseModelConfig } from '../types.js';
 
 // Phase → default config (from agent-token-budget-guide.md)
 const PHASE_CONFIGS: Record<PhaseType, PhaseConfig> = {
@@ -8,6 +8,7 @@ const PHASE_CONFIGS: Record<PhaseType, PhaseConfig> = {
   debug:        { model: 'opus',   effort: 'high',   maxTurns: 5,  timeoutMs: 300_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
   clarify:      { model: 'opus',   effort: 'medium', maxTurns: 5,  timeoutMs: 300_000, tools: ['Read', 'Grep', 'Glob'] },
   fix:          { model: 'sonnet', effort: 'medium', maxTurns: 5,  timeoutMs: 300_000, tools: ['Read', 'Grep', 'Glob', 'Bash', 'Write', 'Edit'] },
+  cook:         { model: 'sonnet', effort: 'medium', maxTurns: 5,  timeoutMs: 300_000, tools: ['Read', 'Grep', 'Glob', 'Bash', 'Write', 'Edit'] },
   test:         { model: 'sonnet', effort: 'low',    maxTurns: 3,  timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
   e2e:          { model: 'sonnet', effort: 'low',    maxTurns: 3,  timeoutMs: 180_000, tools: ['Bash'] },
   verify:       { model: 'sonnet', effort: 'medium', maxTurns: 3,  timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob'] },
@@ -29,18 +30,74 @@ const PHASE_CONFIGS: Record<PhaseType, PhaseConfig> = {
   watzup:   { model: 'sonnet', effort: 'low',    maxTurns: 2, timeoutMs: 120_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
 };
 
+/** Map config kebab-case keys → PhaseType values */
+const CONFIG_KEY_MAP: Record<string, PhaseType> = {
+  'brainstorm':      'brainstorm',
+  'plan':            'plan',
+  'plan-red-team':   'plan_redteam',
+  'red-team':        'plan_redteam',
+  'debug':           'debug',
+  'clarify':         'clarify',
+  'fix':             'fix',
+  'cook':            'cook',
+  'test':            'test',
+  'e2e':             'e2e',
+  'verify':          'verify',
+  'security':        'security',
+  'security-review': 'security_review',
+  'security-stride': 'security_stride',
+  'scout':           'scout',
+  'code-review':     'code_review',
+  'scenario':        'scenario',
+  'ui-test':         'ui_test',
+  'ship':            'ship',
+  'predict':         'predict',
+  'slack-read':      'slack_read',
+  'slack-report':    'slack_report',
+  'journal':         'journal',
+  'docs':            'docs',
+  'design-review':   'design_review',
+  'retro':           'retro',
+  'watzup':          'watzup',
+};
+
 /**
- * Get phase config with optional model override.
- * Model override (from "hard" label) escalates model to opus.
+ * Resolve phase config with 3-level override chain:
+ *   CLI flags (global) > .claude-swarm.json (per-phase) > PHASE_CONFIGS (defaults)
  */
 export function getPhaseConfig(
   phase: PhaseType,
-  modelOverride?: ClaudeModel,
+  configModels?: Record<string, PhaseModelConfig>,
+  cliOverrides?: ModelOverrides,
 ): PhaseConfig {
-  const base = PHASE_CONFIGS[phase];
-  if (!modelOverride) return base;
+  // Level 1: defaults
+  const base = { ...PHASE_CONFIGS[phase] };
 
-  return { ...base, model: modelOverride };
+  // Level 2: config file per-phase overrides
+  if (configModels) {
+    const configEntry = configModels[phase] ?? findConfigEntry(phase, configModels);
+    if (configEntry) {
+      if (configEntry.model) base.model = configEntry.model;
+      if (configEntry.effort) base.effort = configEntry.effort;
+    }
+  }
+
+  // Level 3: CLI global overrides (highest priority)
+  if (cliOverrides?.model) base.model = cliOverrides.model;
+  if (cliOverrides?.effort) base.effort = cliOverrides.effort;
+
+  return base;
+}
+
+/** Reverse-lookup: find config entry for a PhaseType via CONFIG_KEY_MAP */
+function findConfigEntry(
+  phase: PhaseType,
+  configModels: Record<string, PhaseModelConfig>,
+): PhaseModelConfig | undefined {
+  for (const [key, mappedPhase] of Object.entries(CONFIG_KEY_MAP)) {
+    if (mappedPhase === phase && configModels[key]) return configModels[key];
+  }
+  return undefined;
 }
 
 /**

@@ -23,7 +23,7 @@ export async function executeJournal(
     const prompt = buildJournalPrompt(classified, config.vaultPath, flowResults, verifyVerdict);
 
     const result = await invokeClaudePhase(
-      prompt, 'journal', undefined, config.autoMode, config.cwd,
+      prompt, 'journal', undefined, undefined, config.autoMode, config.cwd,
     );
     return result;
   } catch (err) {

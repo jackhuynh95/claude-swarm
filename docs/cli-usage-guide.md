@@ -35,11 +35,48 @@ Create `.claude-swarm.json` in your project root for persistent defaults:
   "baseUrl": "http://localhost:3000",
   "interval": 60000,
   "maxPerHour": 10,
-  "redTeam": true
+  "redTeam": true,
+  "models": {
+    "plan": { "model": "opus", "effort": "high" },
+    "cook": { "model": "sonnet", "effort": "medium" },
+    "fix": { "model": "sonnet", "effort": "medium" },
+    "test": { "model": "sonnet", "effort": "low" },
+    "security": { "model": "sonnet", "effort": "medium" },
+    "red-team": { "model": "opus", "effort": "high" }
+  }
 }
 ```
 
 **Resolution priority:** CLI flag > `.claude-swarm.json` > git remote auto-detect.
+
+### Model & Effort Overrides
+
+The 3-level override chain:
+
+1. **CLI flag** (`--model`, `--effort`) — applies to ALL phases globally
+2. **Config file** (`.claude-swarm.json` `models` field) — per-phase configuration
+3. **Defaults** (in `model-router.ts`) — built-in phase defaults
+
+**Example override scenarios:**
+
+```bash
+# Use CLI flag to save costs across entire project
+claude-swarm watch --auto --model sonnet --effort low
+
+# Or keep per-phase routing from config, just reduce effort
+claude-swarm watch --auto --effort low
+
+# In config, tune phases individually
+# (plan = opus+high, cook = sonnet+medium, test = sonnet+low, etc.)
+```
+
+**Phase names in `.models` config:**
+- `plan` — planning phase (default: opus, high)
+- `cook` — implementation phase (default: sonnet, medium)
+- `fix` — bug fix phase (default: sonnet, medium)
+- `test` — testing phase (default: sonnet, low)
+- `security` — security scan (default: sonnet, medium)
+- `red-team` — adversarial review (default: opus, high)
 
 ---
 
@@ -77,6 +114,8 @@ claude-swarm watch [options]
 | `--red-team` | Enable adversarial red-team verification pass | `false` |
 | `--use-team` | Use `/ck:team` for parallel agent execution | `false` |
 | `--dry-run` | Fetch and classify issues without executing flows | `false` |
+| `--model <model>` | Override model for all phases: `opus`, `sonnet`, `haiku` | (per-phase config) |
+| `--effort <level>` | Override effort for all phases: `low`, `medium`, `high`, `max` | (per-phase config) |
 
 ### How It Works
 
@@ -158,6 +197,12 @@ claude-swarm watch --auto
 
 # Or specify repo explicitly
 claude-swarm watch --repo myorg/myapp --auto
+
+# Cost-saving mode: override all phases to sonnet + low effort
+claude-swarm watch --auto --model sonnet --effort low
+
+# Override just effort (keep per-phase model routing from config)
+claude-swarm watch --auto --effort low
 
 # Full pipeline with vault + E2E
 claude-swarm watch --auto \
@@ -370,6 +415,85 @@ claude-swarm build from-scratch "Admin dashboard" --dry-run
 # Review roadmap at docs/implement-roadmap-admin-dashboard.md
 # Then run: claude-swarm build init @docs/implement-roadmap-admin-dashboard.md
 ```
+
+### run
+
+Execute plan→cook→test→ship pipeline for epics.
+
+```bash
+claude-swarm build run --epic <n> [options]
+```
+
+**Options**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--epic <n>` | **Required.** Run specific epic by issue number | — |
+| `--all` | Run all open epics (label: epic) | `false` |
+| `--from <n>` | Resume from epic number N (with --all) | — |
+| `--from-issue <n>` | Skip child issues < N within an epic | — |
+| `--hard` | Deep analysis: plan red-team + predict per issue | `false` |
+| `--auto` | Enable auto mode for all claude calls | `false` |
+| `--budget <n>` | Max USD per claude call | — |
+| `--permission-mode <mode>` | Permission mode: `auto` or `skip` | — |
+| `--timeout <s>` | Timeout per step in seconds | `600` |
+| `--dry-run` | Show what would run without executing | `false` |
+| `--model <model>` | Override model for all steps: `opus`, `sonnet`, `haiku` | (per-phase config) |
+| `--effort <level>` | Override effort for all steps: `low`, `medium`, `high`, `max` | (per-phase config) |
+
+**Examples**
+
+```bash
+# Run single epic with cost-saving model
+claude-swarm build run --epic 42 --auto --model sonnet --effort low
+
+# Run all epics from a specific point
+claude-swarm build run --all --from 5 --auto
+
+# Deep analysis mode
+claude-swarm build run --epic 42 --hard --model opus --effort high --auto
+```
+
+### plan
+
+Run `/ck:plan` for each open issue in an epic.
+
+```bash
+claude-swarm build plan --epic <n> [options]
+```
+
+**Options**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--epic <n>` | **Required.** Epic issue number | — |
+| `--budget <n>` | Max USD per claude call | — |
+| `--permission-mode <mode>` | Permission mode: `auto` or `skip` | — |
+| `--timeout <s>` | Timeout per call in seconds | — |
+| `--dry-run` | Show what would run | `false` |
+| `--model <model>` | Override model: `opus`, `sonnet`, `haiku` | (config) |
+| `--effort <level>` | Override effort: `low`, `medium`, `high`, `max` | (config) |
+
+### cook
+
+Run `/ck:cook` for each open issue in an epic.
+
+```bash
+claude-swarm build cook --epic <n> [options]
+```
+
+**Options**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--epic <n>` | **Required.** Epic issue number | — |
+| `--auto` | Enable auto mode | `false` |
+| `--budget <n>` | Max USD per claude call | — |
+| `--permission-mode <mode>` | Permission mode: `auto` or `skip` | — |
+| `--timeout <s>` | Timeout per call in seconds | — |
+| `--dry-run` | Show what would run | `false` |
+| `--model <model>` | Override model: `opus`, `sonnet`, `haiku` | (config) |
+| `--effort <level>` | Override effort: `low`, `medium`, `high`, `max` | (config) |
 
 ### status
 

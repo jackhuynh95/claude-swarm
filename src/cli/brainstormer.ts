@@ -47,7 +47,7 @@ If the topic is purely backend/infra with no UI, write "N/A".`;
 
   console.log(`Brainstorming: "${topic}"...`);
 
-  const result = await invokeClaudePhase(prompt, 'brainstorm', modelOverride, true);
+  const result = await invokeClaudePhase(prompt, 'brainstorm', undefined, modelOverride ? { model: modelOverride } : undefined, true);
 
   if (!result.success) {
     console.error(`Error: ${result.error ?? 'Unknown error'}`);

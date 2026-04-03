@@ -20,7 +20,7 @@ If no tasks found, say "No actionable tasks found."`;
 
   console.log(`Reading Slack channel: ${channel} (last ${options.since})...`);
 
-  const result = await invokeClaudePhase(prompt, 'slack_read', modelOverride, true);
+  const result = await invokeClaudePhase(prompt, 'slack_read', undefined, modelOverride ? { model: modelOverride } : undefined, true);
 
   if (!result.success) {
     console.error(`Error: ${result.error ?? 'Unknown error'}`);

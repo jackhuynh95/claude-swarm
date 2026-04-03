@@ -1,4 +1,4 @@
-import type { ClassifiedIssue, PhaseResult } from '../types.js';
+import type { ClassifiedIssue, PhaseResult, ModelOverrides, PhaseModelConfig } from '../types.js';
 import { invokeClaudePhase } from './claude-invoker.js';
 import { transitionLabel, addComment } from './label-manager.js';
 import { createBranch, commitChanges } from './branch-manager.js';
@@ -12,6 +12,8 @@ export interface ShipFlowConfig {
   autoMode: boolean;
   noTest: boolean;
   vaultPath?: string;   // obsidian-vault path for planning context
+  configModels?: Record<string, PhaseModelConfig>;
+  cliOverrides?: ModelOverrides;
   cwd?: string;
 }
 
@@ -62,7 +64,7 @@ export async function executeShipFlow(
   if (isVagueSpec(issue)) {
     const brainstormPrompt = `/ck:brainstorm Clarify scope for #${issue.number}: ${issue.title}\n\n${issue.body ?? ''}`;
     const brainstormResult = await invokeClaudePhase(
-      brainstormPrompt, 'brainstorm', classified.modelOverride, config.autoMode, cwd,
+      brainstormPrompt, 'brainstorm', config.configModels, config.cliOverrides, config.autoMode, cwd,
     );
     results.push(brainstormResult);
     budget.recordInvocation(issue.number, brainstormResult);
@@ -73,7 +75,7 @@ export async function executeShipFlow(
   const planFlag = classified.flags.hardMode ? '--hard' : '--fast';
   const planPrompt = buildPlanPrompt(issue, vaultContext, planFlag);
   const planResult = await invokeClaudePhase(
-    planPrompt, 'plan', classified.modelOverride, config.autoMode, cwd,
+    planPrompt, 'plan', config.configModels, config.cliOverrides, config.autoMode, cwd,
   );
   results.push(planResult);
   budget.recordInvocation(issue.number, planResult);
@@ -83,7 +85,7 @@ export async function executeShipFlow(
   if (classified.flags.hardMode) {
     const redTeamPrompt = `/ck:plan red-team Review plan for #${issue.number}: ${issue.title}. Think like an attacker — find gaps, missing edge cases, security oversights.`;
     const redTeamResult = await invokeClaudePhase(
-      redTeamPrompt, 'plan_redteam', classified.modelOverride, config.autoMode, cwd,
+      redTeamPrompt, 'plan_redteam', config.configModels, config.cliOverrides, config.autoMode, cwd,
     );
     results.push(redTeamResult);
     budget.recordInvocation(issue.number, redTeamResult);
@@ -94,7 +96,7 @@ export async function executeShipFlow(
   if (classified.flags.hardMode) {
     const validatePrompt = `/ck:plan validate Validate plan for #${issue.number}: ${issue.title}. Check for completeness, feasibility, and alignment with project conventions.`;
     const validateResult = await invokeClaudePhase(
-      validatePrompt, 'plan', classified.modelOverride, config.autoMode, cwd,
+      validatePrompt, 'plan', config.configModels, config.cliOverrides, config.autoMode, cwd,
     );
     results.push(validateResult);
     budget.recordInvocation(issue.number, validateResult);
@@ -119,16 +121,16 @@ export async function executeShipFlow(
   const cookFlags = config.noTest ? '--auto --no-test' : '--auto';
   const cookPrompt = `/ck:cook ${cookFlags} Implement GitHub issue #${issue.number}: ${issue.title}\n\n${issue.body ?? ''}`;
   const cookResult = await invokeClaudePhase(
-    cookPrompt, 'fix', classified.modelOverride, config.autoMode, cwd,
+    cookPrompt, 'cook', config.configModels, config.cliOverrides, config.autoMode, cwd,
   );
   results.push(cookResult);
   budget.recordInvocation(issue.number, cookResult);
-  history.recordPhaseOutput(issue.number, 'fix', cookResult);
+  history.recordPhaseOutput(issue.number, 'cook', cookResult);
 
   // 11. Scout — edge case discovery
   const scoutPrompt = `/ck:scout Scan implementation for #${issue.number}: ${issue.title}. Find edge cases, missing validations, untested paths.`;
   const scoutResult = await invokeClaudePhase(
-    scoutPrompt, 'scout', classified.modelOverride, config.autoMode, cwd,
+    scoutPrompt, 'scout', config.configModels, config.cliOverrides, config.autoMode, cwd,
   );
   results.push(scoutResult);
   budget.recordInvocation(issue.number, scoutResult);
@@ -136,7 +138,7 @@ export async function executeShipFlow(
   // 12. Code review — quality check
   const reviewPrompt = `/ck:code-review Review implementation for #${issue.number}: ${issue.title}. Check quality, patterns, maintainability.`;
   const reviewResult = await invokeClaudePhase(
-    reviewPrompt, 'code_review', classified.modelOverride, config.autoMode, cwd,
+    reviewPrompt, 'code_review', config.configModels, config.cliOverrides, config.autoMode, cwd,
   );
   results.push(reviewResult);
   budget.recordInvocation(issue.number, reviewResult);

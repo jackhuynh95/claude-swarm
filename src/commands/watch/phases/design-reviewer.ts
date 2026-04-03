@@ -36,7 +36,7 @@ export async function executeDesignReview(
     const prompt = buildDesignReviewPrompt(issue);
 
     const phaseResult = await invokeClaudePhase(
-      prompt, 'design_review', classified.modelOverride, config.autoMode, config.cwd,
+      prompt, 'design_review', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
     );
 
     const comment = buildDesignComment(phaseResult.output ?? '', issue.number);

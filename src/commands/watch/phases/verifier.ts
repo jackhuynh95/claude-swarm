@@ -35,7 +35,7 @@ export async function executeVerify(
   // Pass 1: Standard quality review
   const standardPrompt = buildVerifyPrompt(issue);
   const standardResult = await invokeClaudePhase(
-    standardPrompt, 'verify', classified.modelOverride, config.autoMode, config.cwd,
+    standardPrompt, 'verify', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
   );
   const standard = parseVerdict(standardResult.output ?? '');
 
@@ -45,7 +45,7 @@ export async function executeVerify(
   if (config.redTeam) {
     const redTeamPrompt = buildRedTeamPrompt(issue);
     redTeamResult = await invokeClaudePhase(
-      redTeamPrompt, 'plan_redteam', classified.modelOverride, config.autoMode, config.cwd,
+      redTeamPrompt, 'plan_redteam', undefined, classified.modelOverride ? { model: classified.modelOverride } : undefined, config.autoMode, config.cwd,
     );
     redTeam = parseVerdict(redTeamResult.output ?? '');
   }
