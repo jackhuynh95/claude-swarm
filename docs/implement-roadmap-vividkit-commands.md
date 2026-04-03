@@ -163,9 +163,10 @@ issue classified as FEATURE
 
 ---
 
-## Phase 3 — Add test-flow.ts (New Module)
+## Phase 3 — Green Testing (test-flow.ts)
 
-**Goal**: Dedicated test flow using VividKit test commands.
+**Goal**: Functional testing — does the code work correctly?
+**Track**: Green testing (Thierry's term)
 
 | # | Task | Status |
 |---|---|---|
@@ -176,9 +177,9 @@ issue classified as FEATURE
 | 25 | Add `/ck:test --ui` — visual UI tests | Pending |
 | 26 | Route test type based on issue labels and content | Pending |
 
-**test-flow:**
+**Green testing flow:**
 ```
-after implementation
+GREEN = "does it work?"
   │
   ├── /ck:scenario (generate test cases from issue)
   ├── /ck:test (unit + integration)
@@ -186,14 +187,15 @@ after implementation
   ├── "frontend" label → /ck:test --ui
   ├── has E2E scenarios → /ck:test --e2e
   │
-  └── report results
+  └── report: GREEN PASS / GREEN FAIL
 ```
 
 ---
 
-## Phase 4 — Add security-flow.ts (New Module)
+## Phase 4 — Red Testing (security-flow.ts)
 
-**Goal**: Full security audit pipeline using VividKit security commands.
+**Goal**: Security testing — can the new code be hacked?
+**Track**: Red testing (Thierry's term)
 
 | # | Task | Status |
 |---|---|---|
@@ -202,19 +204,108 @@ after implementation
 | 29 | Add `/ck:code-review --security` — deep security review | Pending |
 | 30 | Add `/ck:fix --security` — auto-fix security issues | Pending |
 | 31 | Add `/ck:security` — full STRIDE threat modeling | Pending |
-| 32 | Wire into post-ship when "security" label present | Pending |
+| 32 | Add `/ck:plan red-team` — adversarial plan review (think like attackers) | Pending |
+| 33 | Wire into post-ship: always run green first, then red | Pending |
 
-**security-flow:**
+**Red testing flow:**
 ```
-"security" label detected
+RED = "can it be hacked?"
   │
   ├── /ck:security-scan (OWASP + secrets + deps)
-  ├── /ck:code-review --security (deep review)
+  ├── /ck:code-review --security (deep security review)
   ├── /ck:security (STRIDE threat modeling)
+  ├── /ck:plan red-team (adversarial: think like attackers)
   │
   ├── issues found? → /ck:fix --security (auto-fix)
-  └── report findings
+  └── report: RED PASS / RED FAIL
 ```
+
+---
+
+## Green + Red Combined in Post-Ship
+
+```
+after implementation commits:
+  │
+  ├── GREEN TESTING (Phase 3)
+  │   ├── /ck:scenario → /ck:test → /ck:test --e2e
+  │   └── GREEN PASS / GREEN FAIL
+  │
+  ├── RED TESTING (Phase 4) — only if GREEN PASS
+  │   ├── /ck:security-scan → /ck:code-review --security
+  │   ├── /ck:security (STRIDE) → /ck:plan red-team
+  │   └── RED PASS / RED FAIL
+  │
+  ├── GATE: only if GREEN PASS + RED PASS
+  │   └── /ck:ship --official (verify + PR)
+  │       └── fallback: branch-manager createPullRequest()
+  │
+  ├── slack-reporter → report green/red results
+  └── journal-writer → vault
+```
+
+---
+
+## Model & Effort Routing (Flexible)
+
+**Goal**: Configurable model + effort per phase, not hardcoded.
+
+**3 levels of override (highest wins):**
+```
+CLI flag (--model opus --effort high)  >  .claude-swarm.json  >  model-router.ts defaults
+```
+
+**Default routing table** (in model-router.ts):
+
+| Phase | Model | Effort | Why |
+|---|---|---|---|
+| brainstorm | opus | max | Deep creative thinking |
+| plan | opus | high | Architectural reasoning |
+| plan red-team | opus | high | Adversarial review |
+| fix | sonnet | medium | Code execution |
+| cook | sonnet | medium | Code execution |
+| test (green) | sonnet | low | Run and report |
+| e2e (green) | sonnet | low | Browser automation |
+| security (red) | sonnet | medium | Security analysis |
+| red-team (red) | opus | high | Think like attackers |
+| scout | sonnet | low | File discovery |
+| predict | opus | high | 5-persona debate |
+| ship | sonnet | medium | Test + review + PR |
+| report | haiku | low | Format and send |
+| journal | haiku | low | Summarize to vault |
+| retro | sonnet | medium | Sprint reflection |
+
+**Config override** (`.claude-swarm.json`):
+```json
+{
+  "models": {
+    "plan": { "model": "opus", "effort": "high" },
+    "cook": { "model": "sonnet", "effort": "medium" },
+    "fix": { "model": "sonnet", "effort": "medium" },
+    "test": { "model": "sonnet", "effort": "low" },
+    "security": { "model": "sonnet", "effort": "medium" },
+    "red-team": { "model": "opus", "effort": "high" },
+    "report": { "model": "haiku", "effort": "low" }
+  }
+}
+```
+
+**CLI override**:
+```bash
+# Override all to sonnet low (save money)
+claude-swarm watch --auto --model sonnet --effort low
+
+# Override just effort (keep per-phase model routing)
+claude-swarm watch --auto --effort low
+```
+
+| # | Task | Status |
+|---|---|---|
+| M1 | Refactor model-router.ts to read from .claude-swarm.json first, then defaults | Pending |
+| M2 | Add --model and --effort CLI flags to watch command | Pending |
+| M3 | Add --model and --effort CLI flags to builder commands | Pending |
+| M4 | CLI flag overrides config overrides defaults (3-level chain) | Pending |
+| M5 | Add "red-team" and "security" phase configs to model-router | Pending |
 
 ---
 
@@ -342,16 +433,17 @@ after debug-flow or ship-flow commits:
 
 ## Summary
 
-| Phase | What | Files | Tasks |
-|---|---|---|---|
-| 1 | Upgrade debug-flow.ts | `debug-flow.ts` | 10 |
-| 2 | Upgrade ship-flow.ts (no PR here) | `ship-flow.ts` | 10 |
-| 3 | Add test-flow.ts | `test-flow.ts` (new) | 6 |
-| 4 | Add security-flow.ts | `security-flow.ts` (new) | 6 |
-| 5 | Verify + Ship gate (/ck:ship + fallback) | `post-ship-runner.ts`, `verifier.ts` | 7 |
-| 6 | Upgrade builder | `epic-executor.ts` | 6 |
-| 7 | Watcher integration | `watch-command.ts`, `issue-router.ts`, `model-router.ts` | 6 |
-| **Total** | | **8 files (2 new, 6 upgraded)** | **51 tasks** |
+| Phase | What | Track | Files | Tasks |
+|---|---|---|---|---|
+| 1 | Upgrade debug-flow.ts | — | `debug-flow.ts` | 10 |
+| 2 | Upgrade ship-flow.ts (no PR here) | — | `ship-flow.ts` | 10 |
+| 3 | Green Testing (functional) | GREEN | `test-flow.ts` (new) | 6 |
+| 4 | Red Testing (security/hacking) | RED | `security-flow.ts` (new) | 7 |
+| 5 | Verify + Ship gate (/ck:ship + fallback) | — | `post-ship-runner.ts`, `verifier.ts` | 7 |
+| 6 | Upgrade builder | — | `epic-executor.ts` | 6 |
+| 7 | Watcher integration | — | `watch-command.ts`, `issue-router.ts`, `model-router.ts` | 6 |
+| M | Model + effort routing (flexible) | — | `model-router.ts`, `.claude-swarm.json` | 5 |
+| **Total** | | | **9 files (2 new, 7 upgraded)** | **57 tasks** |
 
 ---
 
