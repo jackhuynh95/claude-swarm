@@ -125,7 +125,6 @@ async function processIssue(
         autoMode: options.auto,
         noTest: classified.noTest,
         vaultPath: options.vault,
-        useTeam: options.useTeam,
       });
     }
 
