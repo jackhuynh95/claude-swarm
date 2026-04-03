@@ -40,6 +40,7 @@ export type PhaseType =
   | 'brainstorm' | 'plan' | 'plan_redteam' | 'debug' | 'clarify'
   | 'fix' | 'test' | 'e2e' | 'verify' | 'security'
   | 'scout' | 'code_review'
+  | 'scenario' | 'ui_test'
   | 'slack_read' | 'slack_report' | 'journal' | 'docs'
   | 'design_review';
 
