@@ -96,16 +96,16 @@ VIVIDKIT:
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Replace `/ck:debug → /ck:fix → /ck:test` with single `/ck:fix` call (includes all 6 steps) | Pending |
-| 2 | Add `--hard` flag routing for "hard" labeled issues | Pending |
-| 3 | Add `--quick` flag routing for simple bugs | Pending |
+| 1 | Replace `/ck:debug → /ck:fix → /ck:test` with single `/ck:fix` call (includes all 6 steps) | Done |
+| 2 | Add `--hard` flag routing for "hard" labeled issues | Done |
+| 3 | Add `--quick` flag routing for simple bugs | Done |
 | 4 | Add `--parallel` flag for multiple related bugs | Pending |
-| 5 | Add `--security` flag for security-labeled issues | Pending |
-| 6 | Add `--ci` flag for CI/CD pipeline failures | Pending |
-| 7 | Add `--ui` flag for frontend-labeled issues | Pending |
-| 8 | Add `--logs` flag when issue includes log content | Pending |
-| 9 | Keep retry loop but use `/ck:fix` per cycle instead of debug→fix→test | Pending |
-| 10 | Add `/ck:problem-solving when-stuck` fallback after max retries | Pending |
+| 5 | Add `--security` flag for security-labeled issues | Done |
+| 6 | Add `--ci` flag for CI/CD pipeline failures | Done |
+| 7 | Add `--ui` flag for frontend-labeled issues | Done |
+| 8 | Add `--logs` flag when issue includes log content | Done |
+| 9 | Keep retry loop but use `/ck:fix` per cycle instead of debug→fix→test | Done |
+| 10 | Add `/ck:problem-solving when-stuck` fallback after max retries | Done |
 
 **New debug-flow:**
 ```
@@ -130,16 +130,16 @@ classify issue labels/content
 
 | # | Task | Status |
 |---|---|---|
-| 11 | Add optional `/ck:brainstorm` step when issue lacks clear spec | Pending |
-| 12 | Replace `/ck:plan --fast` with `/ck:plan` (full plan) for complex features | Pending |
-| 13 | Add `/ck:plan validate` step after plan creation | Pending |
-| 14 | Add `/ck:plan red-team` for "hard" labeled features | Pending |
-| 15 | Keep `/ck:cook @plan.md --auto` as implementation step | Pending |
-| 16 | Add `/ck:scout` after cook for edge case discovery | Pending |
-| 17 | Add `/ck:code-review` after cook for quality check | Pending |
-| 18 | Remove `/ck:ship` from ship-flow — moved to post-ship verify gate | Pending |
-| 19 | Add `--skip-test` routing for DOCS/CHORE issues | Pending |
-| 20 | Ship-flow ends at commitChanges() — NO push, NO PR | Pending |
+| 11 | Add optional `/ck:brainstorm` step when issue lacks clear spec | Done |
+| 12 | Replace `/ck:plan --fast` with `/ck:plan` (full plan) for complex features | Done |
+| 13 | Add `/ck:plan validate` step after plan creation | Done |
+| 14 | Add `/ck:plan red-team` for "hard" labeled features | Done |
+| 15 | Keep `/ck:cook @plan.md --auto` as implementation step | Done |
+| 16 | Add `/ck:scout` after cook for edge case discovery | Done |
+| 17 | Add `/ck:code-review` after cook for quality check | Done |
+| 18 | Remove `/ck:ship` from ship-flow — moved to post-ship verify gate | Done |
+| 19 | Add `--skip-test` routing for DOCS/CHORE issues | Done |
+| 20 | Ship-flow ends at commitChanges() — NO push, NO PR | Done |
 
 **New ship-flow (stops at commit — no PR here):**
 ```
@@ -170,12 +170,12 @@ issue classified as FEATURE
 
 | # | Task | Status |
 |---|---|---|
-| 21 | Create `test-flow.ts` as new phase module | Pending |
-| 22 | Add `/ck:scenario` — generate BDD/Gherkin test scenarios from issue | Pending |
-| 23 | Add `/ck:test` — run unit + integration tests | Pending |
-| 24 | Add `/ck:test --e2e` — browser E2E tests (wire to e2e-runner.ts) | Pending |
-| 25 | Add `/ck:test --ui` — visual UI tests | Pending |
-| 26 | Route test type based on issue labels and content | Pending |
+| 21 | Create `test-flow.ts` as new phase module | Done |
+| 22 | Add `/ck:scenario` — generate BDD/Gherkin test scenarios from issue | Done |
+| 23 | Add `/ck:test` — run unit + integration tests | Done |
+| 24 | Add `/ck:test --e2e` — browser E2E tests (wire to e2e-runner.ts) | Done |
+| 25 | Add `/ck:test --ui` — visual UI tests | Done |
+| 26 | Route test type based on issue labels and content | Done |
 
 **Green testing flow:**
 ```
@@ -199,13 +199,13 @@ GREEN = "does it work?"
 
 | # | Task | Status |
 |---|---|---|
-| 27 | Create `security-flow.ts` as new phase module | Pending |
-| 28 | Add `/ck:security-scan` — OWASP + secrets + dependency scan | Pending |
-| 29 | Add `/ck:code-review --security` — deep security review | Pending |
-| 30 | Add `/ck:fix --security` — auto-fix security issues | Pending |
-| 31 | Add `/ck:security` — full STRIDE threat modeling | Pending |
-| 32 | Add `/ck:plan red-team` — adversarial plan review (think like attackers) | Pending |
-| 33 | Wire into post-ship: always run green first, then red | Pending |
+| 27 | Create `security-flow.ts` as new phase module | Done |
+| 28 | Add `/ck:security-scan` — OWASP + secrets + dependency scan | Done |
+| 29 | Add `/ck:code-review --security` — deep security review | Done |
+| 30 | Add `/ck:fix --security` — auto-fix security issues | Done |
+| 31 | Add `/ck:security` — full STRIDE threat modeling | Done |
+| 32 | Add `/ck:plan red-team` — adversarial plan review (think like attackers) | Done |
+| 33 | Wire into post-ship: always run green first, then red | Done |
 
 **Red testing flow:**
 ```
@@ -317,13 +317,13 @@ claude-swarm watch --auto --effort low
 
 | # | Task | Status |
 |---|---|---|
-| 33 | Add `/ck:scout` before `/ck:ship` (edge case discovery) | Pending |
-| 34 | Add `/ck:predict` for impact assessment on large changes | Pending |
-| 35 | Wire `/ck:ship --official` as PRIMARY verify + PR path | Pending |
-| 36 | On `/ck:ship` failure → FALLBACK to `createPullRequest()` from branch-manager.ts | Pending |
-| 37 | Keep branch-manager.ts `createPullRequest()` UNTOUCHED (rollback safety) | Pending |
-| 38 | Log which path was used: "shipped via /ck:ship" or "shipped via fallback" | Pending |
-| 39 | PASS = /ck:ship succeeds (PR created). FAIL = both /ck:ship and fallback fail | Pending |
+| 33 | Add `/ck:scout` before `/ck:ship` (edge case discovery) | Done |
+| 34 | Add `/ck:predict` for impact assessment on large changes | Done |
+| 35 | Wire `/ck:ship --official` as PRIMARY verify + PR path | Done |
+| 36 | On `/ck:ship` failure → FALLBACK to `createPullRequest()` from branch-manager.ts | Done |
+| 37 | Keep branch-manager.ts `createPullRequest()` UNTOUCHED (rollback safety) | Done |
+| 38 | Log which path was used: "shipped via /ck:ship" or "shipped via fallback" | Done |
+| 39 | PASS = /ck:ship succeeds (PR created). FAIL = both /ck:ship and fallback fail | Done |
 
 **New verify gate (in post-ship-runner.ts):**
 ```
@@ -360,8 +360,8 @@ after debug-flow or ship-flow commits:
 | # | Task | Status |
 |---|---|---|
 | 40 | `build generate` uses `/ck:brainstorm` → `/ck:plan --hard` for roadmap creation | Pending |
-| 41 | `build run` uses `/ck:cook @plan.md --auto` per issue (already correct) | Pending |
-| 42 | `build run` adds `/ck:test` after cook (already correct) | Pending |
+| 41 | `build run` uses `/ck:cook @plan.md --auto` per issue | Done (basic) |
+| 42 | `build run` adds `/ck:test` after cook | Done (basic) |
 | 43 | `build run` uses `/ck:ship --official` as verify + PR (fallback to branch-manager) | Pending |
 | 44 | `build run --hard` adds `/ck:plan red-team` and `/ck:predict` per epic | Pending |
 | 45 | `build generate` adds `/ck:scenario` to generate test cases in roadmap | Pending |
@@ -374,12 +374,12 @@ after debug-flow or ship-flow commits:
 
 | # | Task | Status |
 |---|---|---|
-| 44 | Update issue-router.ts to detect CI, logs, UI, security sub-types | Pending |
-| 45 | Wire test-flow.ts into post-ship-runner.ts | Pending |
-| 46 | Wire security-flow.ts into post-ship-runner.ts (when "security" label) | Pending |
-| 47 | Update model-router.ts with new phase configs for test/security flows | Pending |
-| 48 | Add `/ck:retro` call at end of nightly run (sprint retro summary) | Pending |
-| 49 | Add `/ck:watzup` call at start of each poll cycle (recent changes summary) | Pending |
+| 46 | Update issue-router.ts to detect CI, logs, UI, security sub-types | Done |
+| 47 | Wire test-flow.ts into post-ship-runner.ts | Done |
+| 48 | Wire security-flow.ts into post-ship-runner.ts (when "security" label) | Done |
+| 49 | Update model-router.ts with new phase configs for test/security flows | Done |
+| 50 | Add `/ck:retro` call at end of nightly run (sprint retro summary) | Done |
+| 51 | Add `/ck:watzup` call at start of each poll cycle (recent changes summary) | Done |
 
 ---
 
@@ -433,17 +433,32 @@ after debug-flow or ship-flow commits:
 
 ## Summary
 
-| Phase | What | Track | Files | Tasks |
+| Phase | What | Track | Tasks | Status |
 |---|---|---|---|---|
-| 1 | Upgrade debug-flow.ts | — | `debug-flow.ts` | 10 |
-| 2 | Upgrade ship-flow.ts (no PR here) | — | `ship-flow.ts` | 10 |
-| 3 | Green Testing (functional) | GREEN | `test-flow.ts` (new) | 6 |
-| 4 | Red Testing (security/hacking) | RED | `security-flow.ts` (new) | 7 |
-| 5 | Verify + Ship gate (/ck:ship + fallback) | — | `post-ship-runner.ts`, `verifier.ts` | 7 |
-| 6 | Upgrade builder | — | `epic-executor.ts` | 6 |
-| 7 | Watcher integration | — | `watch-command.ts`, `issue-router.ts`, `model-router.ts` | 6 |
-| M | Model + effort routing (flexible) | — | `model-router.ts`, `.claude-swarm.json` | 5 |
-| **Total** | | | **9 files (2 new, 7 upgraded)** | **57 tasks** |
+| 1 | Upgrade debug-flow.ts | — | 10 | **9/10 Done** (--parallel pending) |
+| 2 | Upgrade ship-flow.ts (no PR here) | — | 10 | **10/10 Done** |
+| 3 | Green Testing (test-flow.ts) | GREEN | 6 | **6/6 Done** |
+| 4 | Red Testing (security-flow.ts) | RED | 7 | **7/7 Done** |
+| 5 | Verify + Ship gate (/ck:ship + fallback) | — | 7 | **7/7 Done** |
+| 6 | Upgrade builder (epic-executor.ts) | — | 6 | **2/6 Done** (basic cook+test only) |
+| 7 | Watcher integration | — | 6 | **6/6 Done** |
+| M | Model + effort routing (flexible) | — | 5 | **0/5 Pending** |
+| **Total** | | | **57** | **47/57 Done (82%)** |
+
+### What's Next (10 remaining tasks)
+
+| # | Task | Phase | Priority |
+|---|---|---|---|
+| 4 | Add `--parallel` flag for multiple related bugs in debug-flow | 1 | Low |
+| 40 | `build generate` uses `/ck:brainstorm` → `/ck:plan --hard` | 6 | Medium |
+| 43 | `build run` uses `/ck:ship --official` (fallback to branch-manager) | 6 | Medium |
+| 44 | `build run --hard` adds `/ck:plan red-team` and `/ck:predict` | 6 | Medium |
+| 45 | `build generate` adds `/ck:scenario` for test case generation | 6 | Low |
+| M1 | Refactor model-router.ts to read from .claude-swarm.json | M | High |
+| M2 | Add --model and --effort CLI flags to watch command | M | High |
+| M3 | Add --model and --effort CLI flags to builder commands | M | Medium |
+| M4 | CLI flag overrides config overrides defaults (3-level chain) | M | High |
+| M5 | Add "red-team" and "security" phase configs to model-router | M | Medium |
 
 ---
 
