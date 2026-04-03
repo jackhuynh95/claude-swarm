@@ -23,7 +23,7 @@ async function executeBrainstorm(topic: string, options: BrainstormOptions): Pro
     }
   }
 
-  const prompt = `Use the /brainstorm skill to analyze this topic with trade-off analysis and brutal honesty.
+  const prompt = `Use the /ck:brainstorm skill to analyze this topic with trade-off analysis and brutal honesty.
 
 Topic: ${topic}${contextContent}
 
