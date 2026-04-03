@@ -215,7 +215,20 @@ phase_7() {
     info "Final commit + push..."
     run_claude "/ck:git cp Stage, commit and push all changes." "sonnet" "low" "1.00"
 
-    success "Phase 7 complete — VividKit sync done"
+    success "Phase 7 complete"
+}
+
+phase_8() {
+    header "Phase 8: Model + Effort Routing Flexibility"
+    run_plan "Implement flexible model and effort routing for claude-swarm. Refactor model-router.ts to read from .claude-swarm.json config first then fall back to hardcoded defaults. Add --model and --effort CLI flags to watch command and builder commands. Implement 3-level override chain: CLI flag overrides .claude-swarm.json overrides model-router.ts defaults. Add red-team and security phase configs to model-router. Also add --parallel flag to debug-flow for multiple related bugs."
+    confirm_proceed 8
+    run_cook
+    run_test
+
+    info "Final commit + push..."
+    run_claude "/ck:git cp Stage, commit and push all VividKit sync changes." "sonnet" "low" "1.00"
+
+    success "Phase 8 complete — ALL VividKit sync done"
 }
 
 # ------------------------------------------------------------------------------
@@ -244,8 +257,8 @@ main() {
     if [[ -n "$SINGLE_PHASE" ]]; then
         case "$SINGLE_PHASE" in
             1) phase_1 ;; 2) phase_2 ;; 3) phase_3 ;; 4) phase_4 ;;
-            5) phase_5 ;; 6) phase_6 ;; 7) phase_7 ;;
-            *) error "Unknown phase: $SINGLE_PHASE (valid: 1-7)"; exit 1 ;;
+            5) phase_5 ;; 6) phase_6 ;; 7) phase_7 ;; 8) phase_8 ;;
+            *) error "Unknown phase: $SINGLE_PHASE (valid: 1-8)"; exit 1 ;;
         esac
         local elapsed=$(( $(date +%s) - start_time ))
         success "Phase $SINGLE_PHASE done in ${elapsed}s"
@@ -256,8 +269,8 @@ main() {
     local start=1
     [[ -n "$FROM_PHASE" ]] && start="$FROM_PHASE"
 
-    local phases=(phase_1 phase_2 phase_3 phase_4 phase_5 phase_6 phase_7)
-    local nums=(1 2 3 4 5 6 7)
+    local phases=(phase_1 phase_2 phase_3 phase_4 phase_5 phase_6 phase_7 phase_8)
+    local nums=(1 2 3 4 5 6 7 8)
 
     for i in "${!phases[@]}"; do
         if [[ "${nums[$i]}" -ge "$start" ]]; then
