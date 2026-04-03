@@ -39,6 +39,7 @@ export interface PhaseConfig {
 export type PhaseType =
   | 'brainstorm' | 'plan' | 'plan_redteam' | 'debug' | 'clarify'
   | 'fix' | 'test' | 'e2e' | 'verify' | 'security'
+  | 'scout' | 'code_review'
   | 'slack_read' | 'slack_report' | 'journal' | 'docs'
   | 'design_review';
 

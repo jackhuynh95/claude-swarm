@@ -12,6 +12,8 @@ const PHASE_CONFIGS: Record<PhaseType, PhaseConfig> = {
   e2e:          { model: 'sonnet', effort: 'low',    maxTurns: 3,  timeoutMs: 180_000, tools: ['Bash'] },
   verify:       { model: 'sonnet', effort: 'medium', maxTurns: 3,  timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob'] },
   security:     { model: 'sonnet', effort: 'medium', maxTurns: 3,  timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
+  scout:        { model: 'sonnet', effort: 'low',    maxTurns: 3,  timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob'] },
+  code_review:  { model: 'sonnet', effort: 'medium', maxTurns: 3,  timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob'] },
   slack_read:   { model: 'opus',   effort: 'low',    maxTurns: 2,  timeoutMs: 60_000,  tools: ['Bash'] },
   slack_report: { model: 'haiku',  effort: 'low',    maxTurns: 1,  timeoutMs: 30_000,  tools: ['Bash'] },
   journal:      { model: 'haiku',  effort: 'low',    maxTurns: 1,  timeoutMs: 30_000,  tools: ['Write'] },
@@ -48,5 +50,6 @@ export function getFlowPhases(
   // ship-flow
   const phases: PhaseType[] = ['plan', 'fix'];
   if (!noTest) phases.push('test');
+  phases.push('scout', 'code_review');
   return phases;
 }
