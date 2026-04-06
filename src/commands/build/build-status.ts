@@ -22,6 +22,13 @@ interface EpicStatus {
   children: ChildStatus[];
 }
 
+/** Phase progress parsed from a [Milestone] issue checklist body. */
+interface PhaseProgress {
+  title: string;
+  done: number;
+  total: number;
+}
+
 interface RepoInfo {
   owner: string;
   name: string;
@@ -200,6 +207,76 @@ function renderEpics(epics: EpicStatus[]): void {
   }
 }
 
+// ─── [Milestone] issue support (no epics, checklist-based progress) ───────────
+
+/** Find [Milestone] issues and parse their body checklists into phase progress. */
+function fetchMilestoneIssues(): Array<{ number: number; title: string; phases: PhaseProgress[] }> {
+  try {
+    const raw = execSync(
+      'gh issue list --search "[Milestone]" --state open --json number,title,body -L 20',
+      { encoding: 'utf-8' },
+    );
+    const issues = JSON.parse(raw) as Array<{ number: number; title: string; body: string }>;
+    return issues
+      .filter(i => i.title.startsWith('[Milestone]'))
+      .map(i => ({
+        number: i.number,
+        title: i.title.replace(/^\[Milestone\]\s*/, ''),
+        phases: parseMilestoneBody(i.body ?? ''),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/** Parse a [Milestone] issue body into phase progress by reading ### headings and checklists. */
+function parseMilestoneBody(body: string): PhaseProgress[] {
+  const phases: PhaseProgress[] = [];
+  let current: PhaseProgress | null = null;
+
+  for (const line of body.split('\n')) {
+    // Phase heading: ### Phase N — Name
+    if (/^###\s+/.test(line)) {
+      if (current) phases.push(current);
+      current = { title: line.replace(/^###\s+/, '').trim(), done: 0, total: 0 };
+      continue;
+    }
+    // Checklist item
+    if (current && /^- \[[ x]\]/.test(line)) {
+      current.total++;
+      if (/^- \[x\]/.test(line)) current.done++;
+    }
+  }
+  if (current) phases.push(current);
+  return phases;
+}
+
+/** Render [Milestone] issues with phase-level progress bars. */
+function renderMilestoneIssues(issues: Array<{ number: number; title: string; phases: PhaseProgress[] }>): void {
+  for (const issue of issues) {
+    const totalDone = issue.phases.reduce((s, p) => s + p.done, 0);
+    const totalAll = issue.phases.reduce((s, p) => s + p.total, 0);
+
+    // Header
+    const titleLine = `  [Milestone] #${issue.number}: ${issue.title}`;
+    const barLine = `  ${progressBar(totalDone, totalAll)}`;
+    const width = Math.max(titleLine.length, 50);
+    const border = '═'.repeat(width);
+    console.log(chalk.cyan(`╔${border}╗`));
+    console.log(chalk.cyan('║') + chalk.bold(titleLine.padEnd(width)) + chalk.cyan('║'));
+    console.log(chalk.cyan('║') + barLine.padEnd(width) + chalk.cyan('║'));
+    console.log(chalk.cyan(`╚${border}╝`));
+    console.log('');
+
+    // Phases
+    for (const phase of issue.phases) {
+      console.log(chalk.white(`  ${phase.title}`));
+      console.log(`    ${progressBar(phase.done, phase.total)}`);
+      console.log('');
+    }
+  }
+}
+
 /** Try importing getDailySummary from cost-tracker; silently skip if unavailable. */
 async function renderCostSummary(): Promise<void> {
   try {
@@ -251,17 +328,24 @@ export async function showBuildStatus(options?: { milestone?: string }): Promise
     process.exit(1);
   }
 
-  if (milestones.length === 0) {
-    const hint = options?.milestone ? ` matching "${options.milestone}"` : '';
-    console.log(chalk.yellow(`No open milestones found${hint}.`));
+  // 3. Try [Milestone] issues first (checklist-based, no GitHub milestones needed)
+  const milestoneIssues = fetchMilestoneIssues();
+  if (milestoneIssues.length > 0) {
+    renderMilestoneIssues(milestoneIssues);
+    await renderCostSummary();
     return;
   }
 
-  // 3. Render each milestone
+  // 4. Fall back to GitHub milestones + epic issues
+  if (milestones.length === 0) {
+    const hint = options?.milestone ? ` matching "${options.milestone}"` : '';
+    console.log(chalk.yellow(`No open milestones or [Milestone] issues found${hint}.`));
+    return;
+  }
+
   for (const milestone of milestones) {
     renderMilestoneHeader(milestone);
 
-    // Fetch epics for this milestone
     const epics = fetchEpics(milestone.title);
     if (epics.length === 0) {
       console.log(chalk.dim(`  No epics found for milestone "${milestone.title}".`));
@@ -269,9 +353,7 @@ export async function showBuildStatus(options?: { milestone?: string }): Promise
       continue;
     }
 
-    // Load children for all epics in one batch
     loadEpicChildren(epics);
-
     renderEpics(epics);
   }
 
