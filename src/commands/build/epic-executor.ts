@@ -160,13 +160,16 @@ async function runStep(
   if (opts.model) cliOverrides.model = opts.model as ClaudeModel;
   if (opts.effort) cliOverrides.effort = opts.effort as EffortLevel;
 
+  // --auto implies --dangerously-skip-permissions for all steps
+  const permissionMode = (opts.auto && !opts.permissionMode) ? 'skip' as const : opts.permissionMode;
+
   const phase = STEP_TO_PHASE[step];
   const config = getPhaseConfig(phase, configModels, cliOverrides);
 
   return spawnClaude(prompt, {
     model:          toModelId(config.model),
     budget:         opts.budget,
-    permissionMode: opts.permissionMode,
+    permissionMode,
     timeout:        opts.timeout,
   });
 }
@@ -174,17 +177,8 @@ async function runStep(
 // ─── Ship step: /ck:ship --official with createPullRequest() fallback ─────────
 
 async function shipIssue(issue: EpicChild, opts: ExecutorOptions, configModels?: Record<string, PhaseModelConfig>): Promise<StepResult> {
-  const cliOverrides: ModelOverrides = {};
-  if (opts.model) cliOverrides.model = opts.model as ClaudeModel;
-  if (opts.effort) cliOverrides.effort = opts.effort as EffortLevel;
-  const shipConfig = getPhaseConfig('ship', configModels, cliOverrides);
-
-  const shipResult = await spawnClaude('/ck:ship --official', {
-    model:          toModelId(shipConfig.model),
-    budget:         opts.budget,
-    permissionMode: opts.permissionMode,
-    timeout:        opts.timeout ?? 600,
-  });
+  // Use runStep so auto→skip is applied consistently
+  const shipResult = await runStep('ship', '/ck:ship --official', opts, configModels);
 
   if (shipResult.success) {
     console.log(chalk.green(`    shipped via /ck:ship`));
@@ -232,30 +226,24 @@ export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}
 
     console.log(chalk.white(`\n  ► #${child.number}: ${child.title}`));
 
-    // --auto implies --dangerously-skip-permissions for unattended runs
-    const effectiveOpts = { ...opts };
-    if (opts.auto && !opts.permissionMode) {
-      effectiveOpts.permissionMode = 'skip';
-    }
-
     // Build pipeline dynamically based on --hard mode
     const pipeline: { name: string; fn: () => Promise<StepResult> }[] = [];
 
-    if (effectiveOpts.hard) {
-      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --hard Implement #${child.number}: ${child.title}`,    effectiveOpts, configModels) });
-      pipeline.push({ name: 'plan-red-team', fn: () => runStep('plan-red-team', `/ck:plan red-team #${child.number}: ${child.title}`,            effectiveOpts, configModels) });
+    if (opts.hard) {
+      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --hard Implement #${child.number}: ${child.title}`,    opts, configModels) });
+      pipeline.push({ name: 'plan-red-team', fn: () => runStep('plan-red-team', `/ck:plan red-team #${child.number}: ${child.title}`,            opts, configModels) });
     } else {
-      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --fast Implement #${child.number}: ${child.title}`,    effectiveOpts, configModels) });
+      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --fast Implement #${child.number}: ${child.title}`,    opts, configModels) });
     }
 
-    pipeline.push({ name: 'cook', fn: () => runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, effectiveOpts, configModels) });
-    pipeline.push({ name: 'test', fn: () => runStep('test', `/ck:test`,                                         effectiveOpts, configModels) });
+    pipeline.push({ name: 'cook', fn: () => runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts, configModels) });
+    pipeline.push({ name: 'test', fn: () => runStep('test', `/ck:test`,                                         opts, configModels) });
 
-    if (effectiveOpts.hard) {
-      pipeline.push({ name: 'predict', fn: () => runStep('predict', `/ck:predict #${child.number}: ${child.title}`, effectiveOpts, configModels) });
+    if (opts.hard) {
+      pipeline.push({ name: 'predict', fn: () => runStep('predict', `/ck:predict #${child.number}: ${child.title}`, opts, configModels) });
     }
 
-    pipeline.push({ name: 'ship', fn: () => shipIssue(child, effectiveOpts, configModels) });
+    pipeline.push({ name: 'ship', fn: () => shipIssue(child, opts, configModels) });
 
     // Execute pipeline steps sequentially
     let allPassed = true;
@@ -410,14 +398,8 @@ export async function executeFromRoadmap(
     const autoFlag = opts.auto ? ' --auto' : '';
     const cookPrompt = `/ck:cook${autoFlag} Implement task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}`;
 
-    // --auto implies --dangerously-skip-permissions if not explicitly set
-    const effectiveOpts = { ...opts };
-    if (opts.auto && !opts.permissionMode) {
-      effectiveOpts.permissionMode = 'skip';
-    }
-
     const spinner = ora(`    cooking...`).start();
-    const result = await runStep('cook', cookPrompt, effectiveOpts, configModels);
+    const result = await runStep('cook', cookPrompt, opts, configModels);
     const dur = (result.durationMs / 1000).toFixed(1);
 
     if (result.success) {
