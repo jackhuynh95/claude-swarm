@@ -13,6 +13,7 @@ import {
   type ExecutorOptions,
 } from './epic-executor.js';
 import { showBuildStatus } from './build-status.js';
+import { loadProjectConfig } from '../../config-resolver.js';
 
 export const buildCommand = new Command('build')
   .description('Generate roadmaps, create issues, and execute implementation pipelines');
@@ -107,9 +108,11 @@ buildCommand
   .option('--model <model>', 'Override model for all steps (opus|sonnet|haiku)')
   .option('--effort <level>', 'Override effort for all steps (low|medium|high|max)')
   .action(async (opts) => {
+    // Merge .claude-swarm.json config — CLI flags override config values
+    const config = loadProjectConfig();
     const executorOpts = {
-      auto:           opts.auto,
-      hard:           opts.hard,
+      auto:           opts.auto   ?? config.auto,
+      hard:           opts.hard   ?? config.redTeam,
       budget:         opts.budget,
       permissionMode: opts.permissionMode,
       timeout:        opts.timeout,
@@ -149,13 +152,15 @@ buildCommand
   .option('--effort <level>', 'Override effort for all steps (low|medium|high|max)')
   .action(async (opts) => {
     if (opts.epic == null) { console.error('Error: --epic <n> is required'); process.exit(1); }
+    const config = loadProjectConfig();
     await planEpicIssues(opts.epic, {
-      budget: opts.budget,
+      auto:           config.auto,
+      budget:         opts.budget,
       permissionMode: opts.permissionMode,
-      timeout: opts.timeout,
-      dryRun: opts.dryRun,
-      model: opts.model,
-      effort: opts.effort,
+      timeout:        opts.timeout,
+      dryRun:         opts.dryRun,
+      model:          opts.model,
+      effort:         opts.effort,
     });
   });
 
@@ -172,14 +177,15 @@ buildCommand
   .option('--effort <level>', 'Override effort for all steps (low|medium|high|max)')
   .action(async (opts) => {
     if (opts.epic == null) { console.error('Error: --epic <n> is required'); process.exit(1); }
+    const config = loadProjectConfig();
     await cookEpicIssues(opts.epic, {
-      auto: opts.auto,
-      budget: opts.budget,
+      auto:           opts.auto ?? config.auto,
+      budget:         opts.budget,
       permissionMode: opts.permissionMode,
-      timeout: opts.timeout,
-      dryRun: opts.dryRun,
-      model: opts.model,
-      effort: opts.effort,
+      timeout:        opts.timeout,
+      dryRun:         opts.dryRun,
+      model:          opts.model,
+      effort:         opts.effort,
     });
   });
 
