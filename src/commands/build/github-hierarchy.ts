@@ -5,7 +5,7 @@
  * 1 roadmap = 1 GitHub issue (with [Milestone] prefix)
  */
 
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import chalk from 'chalk';
 import ora from 'ora';
 import type { Roadmap } from './roadmap-parser.js';
@@ -47,6 +47,17 @@ function buildMilestoneBody(roadmap: Roadmap): string {
   return lines.join('\n');
 }
 
+// ─── GitHub CLI wrapper (shell-safe, no backtick interpolation) ───────────────
+
+/** Run `gh` with args array to avoid shell interpretation of backticks/special chars. */
+function gh(args: string[]): string {
+  const result = spawnSync('gh', args, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+  if (result.status !== 0) {
+    throw new Error(`gh ${args[0]} failed: ${result.stderr.trim()}`);
+  }
+  return result.stdout.trim();
+}
+
 // ─── Main: create single [Milestone] issue from parsed roadmap ────────────────
 
 export async function initFromRoadmap(roadmap: Roadmap, opts: InitOptions = {}): Promise<InitResult | null> {
@@ -75,12 +86,9 @@ export async function initFromRoadmap(roadmap: Roadmap, opts: InitOptions = {}):
 
   try {
     const body = buildMilestoneBody(roadmap);
-    const raw = execSync(
-      `gh issue create --title ${JSON.stringify(issueTitle)} --body ${JSON.stringify(body)}`,
-      { encoding: 'utf-8' },
-    );
+    // Use args array (not shell string) to avoid backtick/special char interpretation
+    const url = gh(['issue', 'create', '--title', issueTitle, '--body', body]);
 
-    const url = raw.trim();
     const numMatch = url.match(/\/(\d+)\s*$/);
     if (!numMatch) throw new Error(`Failed to parse issue number from: ${url}`);
     const issueNumber = parseInt(numMatch[1], 10);

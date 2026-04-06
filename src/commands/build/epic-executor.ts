@@ -1,4 +1,4 @@
-import { spawn, execSync } from 'node:child_process';
+import { spawn, execSync, spawnSync } from 'node:child_process';
 import chalk from 'chalk';
 import ora from 'ora';
 import { createPullRequest } from '../watch/phases/branch-manager.js';
@@ -318,7 +318,8 @@ function checkMilestoneTask(issueNumber: number, taskTitle: string): void {
     const escaped = taskTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const updated = body.replace(new RegExp(`- \\[ \\] ${escaped}`), `- [x] ${taskTitle}`);
     if (updated === body) return;
-    execSync(`gh issue edit ${issueNumber} --body ${JSON.stringify(updated)}`, { stdio: 'pipe' });
+    // Use spawnSync with args array to avoid shell interpretation of backticks in body
+    spawnSync('gh', ['issue', 'edit', String(issueNumber), '--body', updated], { stdio: 'pipe' });
   } catch {
     // Non-critical — log and continue
     console.error(chalk.dim(`  ⚠ Failed to update checklist for: ${taskTitle.slice(0, 50)}`));
