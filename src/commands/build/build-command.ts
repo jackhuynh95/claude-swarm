@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { generateRoadmap } from './roadmap-generator.js';
+import { generateDoc } from './generate-doc.js';
 import { fromScratch } from './from-scratch-pipeline.js';
 import { parseRoadmap } from './roadmap-parser.js';
 import {
@@ -30,6 +31,29 @@ buildCommand
       dryRun:   opts.dryRun,
       budget:   opts.budget,
       timeout:  opts.timeout,
+    });
+  });
+
+buildCommand
+  .command('generate-doc <input>')
+  .description('Generate a docs/implement-roadmap-{slug}.md from a topic or @file')
+  .option('--context <file>', 'Additional context file (@path)')
+  .option('--epics <n>', 'Number of phases/epics (default: auto)', parseInt)
+  .option('--dry-run', 'Preview without executing', false)
+  .option('--budget <n>', 'Max USD per claude call', parseFloat)
+  .option('--timeout <s>', 'Timeout in seconds (default: 600)', parseInt)
+  .option('--model <model>', 'Override model (default: opus)')
+  .option('--effort <level>', 'Effort level (default: high)')
+  .action(async (input, opts) => {
+    await generateDoc({
+      input,
+      context: opts.context,
+      epics:   opts.epics,
+      dryRun:  opts.dryRun,
+      budget:  opts.budget,
+      timeout: opts.timeout,
+      model:   opts.model,
+      effort:  opts.effort,
     });
   });
 
