@@ -187,25 +187,96 @@ alignment-check:
 
 ---
 
-## Phase 6 — Watcher Integration
+## Phase 6 — Loop Prevention (Safety)
 
-**Goal**: Auto-sync after watcher completes issues.
+**Goal**: Prevent infinite sync loops between vaults.
 
 | # | Task | Status |
 |---|---|---|
-| 36 | After journal-writer runs → trigger smart-pull for new notes | Pending |
-| 37 | Before /ck:plan runs → trigger smart-push with issue context | Pending |
-| 38 | Wire into post-ship-runner.ts (after journal, before next poll) | Pending |
+| 36 | Add `source-project` frontmatter to promoted notes (smart-pull skips on re-pull) | Pending |
+| 37 | Add `injected-from: second-brain` frontmatter to injected notes (smart-pull skips these) | Pending |
+| 38 | Enforce one-shot rule: pull and push NEVER chain in same cycle | Pending |
+| 39 | Add `synced-at` timestamp to prevent re-processing same note | Pending |
+
+**3 rules that prevent infinite loops**:
+```
+Rule 1: NEVER chain pull → push in same cycle
+  Pull happens AFTER issue completion
+  Push happens BEFORE next issue planning
+  They never trigger each other
+
+Rule 2: Skip notes with injected-from frontmatter
+  Notes pushed FROM second-brain have:
+    ---
+    injected-from: second-brain
+    ---
+  Smart-pull sees this → SKIP (don't promote back)
+
+Rule 3: Skip notes with source-project frontmatter
+  Notes pulled FROM projects have:
+    ---
+    source-project: medusa
+    promoted-date: 2026-04-06
+    ---
+  Smart-push sees this → already synced, SKIP
+```
+
+---
+
+## Phase 7 — Watcher Integration
+
+**Goal**: Auto-sync after watcher completes issues. One-shot per cycle.
+
+| # | Task | Status |
+|---|---|---|
+| 40 | After journal-writer runs → trigger smart-pull ONCE | Pending |
+| 41 | Before /ck:plan runs → trigger smart-push ONCE with issue context | Pending |
+| 42 | Wire into post-ship-runner.ts (after journal, before next poll) | Pending |
+| 43 | Respect loop-prevention rules from Phase 6 | Pending |
 
 **Watcher flow with smart sync**:
 ```
 poll → classify → route → execute → commit
   → GREEN test → RED test → /ck:ship
   → slack-report → journal-writer
-  → SMART PULL (new notes → second-brain)     ← NEW
-  → next poll
-  → SMART PUSH (relevant notes → project vault) ← NEW
+  → SMART PULL ONCE (new notes → second-brain)
+  → STOP. No more sync this cycle.
+  
+next poll cycle:
+  → SMART PUSH ONCE (relevant notes → project vault)
   → /ck:plan (now has context from second-brain)
+  → execute → commit → ...
+```
+
+---
+
+## Phase 8 — Builder Integration
+
+**Goal**: Builder gets smart sync — same modules, wired into epic-executor.
+
+| # | Task | Status |
+|---|---|---|
+| 44 | `build generate`: smart-push before brainstorm (inject context) | Pending |
+| 45 | `build run`: smart-push before each issue's /ck:plan | Pending |
+| 46 | `build run`: smart-pull after each issue completes | Pending |
+| 47 | `build from-scratch`: smart-push at start, smart-pull at end | Pending |
+| 48 | Respect same loop-prevention rules from Phase 6 | Pending |
+
+**Builder flow with smart sync**:
+```
+build generate "Add analytics dashboard"
+  → SMART PUSH (inject chart-js, vue patterns from second-brain)
+  → /ck:brainstorm (now has foundation knowledge)
+  → generates roadmap with standards already applied
+
+build run --epic 1 --auto
+  → for each issue:
+    → SMART PUSH (inject relevant notes for THIS issue)
+    → /ck:plan (knows team conventions)
+    → /ck:cook (follows standards)
+    → /ck:test
+    → /ck:ship
+    → SMART PULL (promote new lessons)
 ```
 
 ---
@@ -249,9 +320,11 @@ claude-swarm sync push --project medusa --force
 | Phase | What | Files | Tasks |
 |---|---|---|---|
 | 1 | Note Classifier | `note-classifier.ts` | 6 |
-| 2 | Smart Pull | `smart-pull.ts` | 8 |
-| 3 | Smart Push | `smart-push.ts` | 8 |
+| 2 | Smart Pull (project → brain) | `smart-pull.ts` | 8 |
+| 3 | Smart Push (brain → project) | `smart-push.ts` | 8 |
 | 4 | Alignment Check | `alignment-checker.ts` | 5 |
 | 5 | CLI Wiring | `sync-command.ts` | 8 |
-| 6 | Watcher Integration | `post-ship-runner.ts` | 3 |
-| **Total** | | **5 new files + 1 upgraded** | **38 tasks** |
+| 6 | Loop Prevention (safety) | frontmatter rules in pull/push | 4 |
+| 7 | Watcher Integration (auto) | `post-ship-runner.ts` | 4 |
+| 8 | Builder Integration (auto) | `epic-executor.ts` | 5 |
+| **Total** | | **5 new + 2 upgraded** | **48 tasks** |
