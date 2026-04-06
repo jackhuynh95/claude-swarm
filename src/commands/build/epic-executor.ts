@@ -236,7 +236,8 @@ export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}
       pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --fast Implement #${child.number}: ${child.title}`,    opts, configModels) });
     }
 
-    pipeline.push({ name: 'cook', fn: () => runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts, configModels) });
+    const autoFlag = opts.auto ? ' --auto' : '';
+    pipeline.push({ name: 'cook', fn: () => runStep('cook', `/ck:cook${autoFlag} #${child.number}: ${child.title}`, opts, configModels) });
     pipeline.push({ name: 'test', fn: () => runStep('test', `/ck:test`,                                         opts, configModels) });
 
     if (opts.hard) {
@@ -298,10 +299,11 @@ export async function cookEpicIssues(epicNumber: number, opts: ExecutorOptions =
   const children = fetchEpicChildren(epicNumber).filter(c => !isIssueClosed(c.number));
   console.log(chalk.blue(`\n▶ Cooking ${children.length} issue(s) in epic #${epicNumber}`));
   const configModels = loadProjectConfig().models;
+  const autoFlag = opts.auto ? ' --auto' : '';
   for (const child of children) {
-    if (opts.dryRun) { console.log(chalk.cyan(`  [DRY RUN] /ck:cook --auto #${child.number}: ${child.title}`)); continue; }
+    if (opts.dryRun) { console.log(chalk.cyan(`  [DRY RUN] /ck:cook${autoFlag} #${child.number}: ${child.title}`)); continue; }
     const spinner = ora(`  #${child.number}: ${child.title}`).start();
-    const result  = await runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts, configModels);
+    const result  = await runStep('cook', `/ck:cook${autoFlag} #${child.number}: ${child.title}`, opts, configModels);
     result.success ? spinner.succeed() : spinner.fail(chalk.red(result.stderr.slice(0, 120)));
   }
 }
