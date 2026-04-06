@@ -109,6 +109,11 @@ function spawnClaude(
     if (opts.permissionMode === 'skip')        args.push('--dangerously-skip-permissions');
     else if (opts.permissionMode === 'auto')   args.push('--permission-mode', 'auto');
 
+    // Debug: log the command being spawned (visible in verbose mode)
+    if (process.env.DEBUG) {
+      console.error(chalk.dim(`  [debug] claude ${args.map(a => a.startsWith('/') || a.includes(' ') ? JSON.stringify(a) : a).join(' ')}`));
+    }
+
     const proc = spawn('claude', args, { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '', timedOut = false;
     let killTimer: ReturnType<typeof setTimeout> | undefined;
@@ -395,12 +400,18 @@ export async function executeFromRoadmap(
 
     console.log(chalk.white(`\n  ► Task ${issue.id}: ${issue.title}`));
 
-    // Cook the task
+    // Cook the task — include roadmap path for context
     const autoFlag = opts.auto ? ' --auto' : '';
-    const cookPrompt = `/ck:cook${autoFlag} Implement task: ${issue.title}`;
+    const cookPrompt = `/ck:cook${autoFlag} Implement task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}`;
+
+    // --auto implies --permission-mode auto if not explicitly set
+    const effectiveOpts = { ...opts };
+    if (opts.auto && !opts.permissionMode) {
+      effectiveOpts.permissionMode = 'auto';
+    }
 
     const spinner = ora(`    cooking...`).start();
-    const result = await runStep('cook', cookPrompt, opts, configModels);
+    const result = await runStep('cook', cookPrompt, effectiveOpts, configModels);
     const dur = (result.durationMs / 1000).toFixed(1);
 
     if (result.success) {
