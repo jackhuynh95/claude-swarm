@@ -232,24 +232,30 @@ export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}
 
     console.log(chalk.white(`\n  ► #${child.number}: ${child.title}`));
 
+    // --auto implies --dangerously-skip-permissions for unattended runs
+    const effectiveOpts = { ...opts };
+    if (opts.auto && !opts.permissionMode) {
+      effectiveOpts.permissionMode = 'skip';
+    }
+
     // Build pipeline dynamically based on --hard mode
     const pipeline: { name: string; fn: () => Promise<StepResult> }[] = [];
 
-    if (opts.hard) {
-      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --hard Implement #${child.number}: ${child.title}`,    opts, configModels) });
-      pipeline.push({ name: 'plan-red-team', fn: () => runStep('plan-red-team', `/ck:plan red-team #${child.number}: ${child.title}`,            opts, configModels) });
+    if (effectiveOpts.hard) {
+      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --hard Implement #${child.number}: ${child.title}`,    effectiveOpts, configModels) });
+      pipeline.push({ name: 'plan-red-team', fn: () => runStep('plan-red-team', `/ck:plan red-team #${child.number}: ${child.title}`,            effectiveOpts, configModels) });
     } else {
-      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --fast Implement #${child.number}: ${child.title}`,    opts, configModels) });
+      pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --fast Implement #${child.number}: ${child.title}`,    effectiveOpts, configModels) });
     }
 
-    pipeline.push({ name: 'cook', fn: () => runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts, configModels) });
-    pipeline.push({ name: 'test', fn: () => runStep('test', `/ck:test`,                                         opts, configModels) });
+    pipeline.push({ name: 'cook', fn: () => runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, effectiveOpts, configModels) });
+    pipeline.push({ name: 'test', fn: () => runStep('test', `/ck:test`,                                         effectiveOpts, configModels) });
 
-    if (opts.hard) {
-      pipeline.push({ name: 'predict', fn: () => runStep('predict', `/ck:predict #${child.number}: ${child.title}`, opts, configModels) });
+    if (effectiveOpts.hard) {
+      pipeline.push({ name: 'predict', fn: () => runStep('predict', `/ck:predict #${child.number}: ${child.title}`, effectiveOpts, configModels) });
     }
 
-    pipeline.push({ name: 'ship', fn: () => shipIssue(child, opts, configModels) });
+    pipeline.push({ name: 'ship', fn: () => shipIssue(child, effectiveOpts, configModels) });
 
     // Execute pipeline steps sequentially
     let allPassed = true;
