@@ -341,19 +341,39 @@ function loadRoadmapTasks(roadmapPath: string): Array<{ epic: Epic; issue: Issue
 
 /**
  * Execute tasks from a roadmap file directly (no GitHub epic issues needed).
- * Optionally syncs progress to a [Milestone] tracking issue.
+ * Use --phase N to run a single phase, or --all / omit for all phases.
+ * Optionally syncs progress to a [Milestone] tracking issue via --issue N.
  */
 export async function executeFromRoadmap(
   roadmapPath: string,
-  opts: ExecutorOptions & { trackingIssue?: number } = {},
+  opts: ExecutorOptions & { trackingIssue?: number; phase?: number } = {},
 ): Promise<void> {
-  const tasks = loadRoadmapTasks(roadmapPath);
+  let tasks = loadRoadmapTasks(roadmapPath);
+
+  // Filter to specific phase if --phase N provided (1-indexed)
+  if (opts.phase != null) {
+    const phaseIndex = opts.phase - 1;
+    const phaseExists = tasks.some(t => t.epicIndex === phaseIndex);
+    if (!phaseExists) {
+      const maxPhase = Math.max(...tasks.map(t => t.epicIndex)) + 1;
+      console.error(chalk.red(`Error: phase ${opts.phase} not found (roadmap has ${maxPhase} phases)`));
+      process.exit(1);
+    }
+    tasks = tasks.filter(t => t.epicIndex === phaseIndex);
+  }
+
+  // Filter by --from-task (skip tasks with ID < N)
+  if (opts.fromIssue) {
+    tasks = tasks.filter(t => parseInt(t.issue.id, 10) >= opts.fromIssue!);
+  }
+
   const configModels = loadProjectConfig().models;
   const totalTasks = tasks.length;
   let completed = 0;
   let failed = 0;
 
-  console.log(chalk.blue(`\n▶ Running ${totalTasks} task(s) from roadmap`));
+  const phaseLabel = opts.phase != null ? ` (phase ${opts.phase})` : '';
+  console.log(chalk.blue(`\n▶ Running ${totalTasks} task(s) from roadmap${phaseLabel}`));
   if (opts.trackingIssue) {
     console.log(chalk.dim(`  Syncing progress to issue #${opts.trackingIssue}`));
   }
@@ -361,23 +381,10 @@ export async function executeFromRoadmap(
   let currentEpicIndex = -1;
 
   for (const { epic, issue, epicIndex } of tasks) {
-    const taskNum = parseInt(issue.id, 10);
-
-    // Skip tasks before --from-issue
-    if (opts.fromIssue && taskNum < opts.fromIssue) {
-      console.log(chalk.dim(`  ⟶ Task ${issue.id} skipped (--from-issue ${opts.fromIssue})`));
-      continue;
-    }
-
-    // Skip epics before --from-epic
-    if (opts.fromEpic && epicIndex + 1 < opts.fromEpic) {
-      continue;
-    }
-
-    // Print epic header when switching to a new phase
+    // Print phase header when switching to a new phase
     if (epicIndex !== currentEpicIndex) {
       currentEpicIndex = epicIndex;
-      console.log(chalk.blue(`\n  ── ${epic.title} ──`));
+      console.log(chalk.blue(`\n  ── Phase ${epicIndex + 1}: ${epic.title} ──`));
     }
 
     if (opts.dryRun) {
@@ -387,7 +394,7 @@ export async function executeFromRoadmap(
 
     console.log(chalk.white(`\n  ► Task ${issue.id}: ${issue.title}`));
 
-    // Build pipeline: cook the task (plan + cook + test)
+    // Cook the task
     const autoFlag = opts.auto ? ' --auto' : '';
     const cookPrompt = `/ck:cook${autoFlag} Implement task: ${issue.title}`;
 

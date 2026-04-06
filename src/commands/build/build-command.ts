@@ -91,13 +91,14 @@ buildCommand
 buildCommand
   .command('run')
   .description('Execute tasks from a roadmap file or GitHub epic issues')
-  .option('--roadmap <path>', 'Run directly from a roadmap markdown file (@path supported)')
+  .option('--roadmap <path>', 'Run from a roadmap markdown file (@path supported)')
+  .option('--phase <n>', 'Run specific phase from roadmap (1-indexed)', parseInt)
   .option('--issue <n>', 'GitHub issue number to sync progress checklist to', parseInt)
-  .option('--epic <n>', 'Run specific epic by GitHub issue number', parseInt)
-  .option('--all', 'Run all open GitHub epics (label: epic)')
-  .option('--from <n>', 'Resume from epic/phase number N', parseInt)
-  .option('--from-issue <n>', 'Skip tasks with ID < N', parseInt)
-  .option('--hard', 'Deep analysis: plan red-team + predict per issue')
+  .option('--epic <n>', 'Run specific GitHub epic by issue number', parseInt)
+  .option('--all', 'Run all phases (roadmap) or all epics (GitHub)')
+  .option('--from <n>', 'Resume from phase/epic number N', parseInt)
+  .option('--from-task <n>', 'Skip tasks with ID < N within a phase', parseInt)
+  .option('--hard', 'Deep analysis: plan red-team + predict per task')
   .option('--auto', 'Enable auto mode for all claude calls')
   .option('--budget <n>', 'Max USD per claude call', parseFloat)
   .option('--permission-mode <mode>', 'Permission mode: auto or skip')
@@ -113,14 +114,19 @@ buildCommand
       permissionMode: opts.permissionMode,
       timeout:        opts.timeout,
       dryRun:         opts.dryRun,
-      fromIssue:      opts.fromIssue,
+      fromIssue:      opts.fromTask,
       fromEpic:       opts.from,
       model:          opts.model,
       effort:         opts.effort,
     };
     if (opts.roadmap) {
+      // Roadmap mode: --phase N for single phase, --all for all phases
       const roadmapPath = opts.roadmap.replace(/^@/, '');
-      await executeFromRoadmap(roadmapPath, { ...executorOpts, trackingIssue: opts.issue });
+      await executeFromRoadmap(roadmapPath, {
+        ...executorOpts,
+        trackingIssue: opts.issue,
+        phase:         opts.phase,
+      });
     } else if (opts.all) {
       await executeAllEpics(executorOpts);
     } else if (opts.epic != null) {
