@@ -51,7 +51,7 @@ function spawnClaude(
   opts: { model?: string; effort?: string; budget?: number; timeout?: number },
 ): Promise<{ success: boolean; stdout: string; stderr: string }> {
   return new Promise(res => {
-    const model = opts.model ?? 'claude-opus-4-5';
+    const model = opts.model ?? 'claude-opus-4-6';
     const args = ['-p', prompt, '--model', model, '--output-format', 'text', '--dangerously-skip-permissions'];
     if (opts.effort) args.push('--effort', opts.effort);
     if (opts.budget) args.push('--max-budget-usd', String(opts.budget));

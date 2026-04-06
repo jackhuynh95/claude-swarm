@@ -3,9 +3,11 @@ import { generateRoadmap } from './roadmap-generator.js';
 import { generateDoc } from './generate-doc.js';
 import { fromScratch } from './from-scratch-pipeline.js';
 import { parseRoadmap } from './roadmap-parser.js';
+import { initFromRoadmap } from './github-hierarchy.js';
 import {
   executeEpic,
   executeAllEpics,
+  executeFromRoadmap,
   planEpicIssues,
   cookEpicIssues,
   type ExecutorOptions,
@@ -78,26 +80,23 @@ buildCommand
 
 buildCommand
   .command('init <roadmap>')
-  .description('Parse roadmap and create GitHub hierarchy')
+  .description('Parse roadmap and create GitHub milestone, epic issues, and child issues')
   .option('--dry-run', 'Show parsed structure without creating issues')
   .action(async (roadmapPath, options) => {
     const filePath = roadmapPath.replace(/^@/, '');
     const parsed = parseRoadmap(filePath);
-    if (options.dryRun) {
-      console.log(JSON.stringify(parsed, null, 2));
-      return;
-    }
-    // TODO: Phase 2 will wire to github-hierarchy.ts
-    console.log(JSON.stringify(parsed, null, 2));
+    await initFromRoadmap(parsed, options.dryRun);
   });
 
 buildCommand
   .command('run')
-  .description('Execute plan->cook->test->ship pipeline for epics')
-  .option('--epic <n>', 'Run specific epic by issue number', parseInt)
-  .option('--all', 'Run all open epics (label: epic)')
-  .option('--from <n>', 'Resume from epic number N (with --all)', parseInt)
-  .option('--from-issue <n>', 'Skip child issues < N within an epic', parseInt)
+  .description('Execute tasks from a roadmap file or GitHub epic issues')
+  .option('--roadmap <path>', 'Run directly from a roadmap markdown file (@path supported)')
+  .option('--issue <n>', 'GitHub issue number to sync progress checklist to', parseInt)
+  .option('--epic <n>', 'Run specific epic by GitHub issue number', parseInt)
+  .option('--all', 'Run all open GitHub epics (label: epic)')
+  .option('--from <n>', 'Resume from epic/phase number N', parseInt)
+  .option('--from-issue <n>', 'Skip tasks with ID < N', parseInt)
   .option('--hard', 'Deep analysis: plan red-team + predict per issue')
   .option('--auto', 'Enable auto mode for all claude calls')
   .option('--budget <n>', 'Max USD per claude call', parseFloat)
@@ -119,12 +118,15 @@ buildCommand
       model:          opts.model,
       effort:         opts.effort,
     };
-    if (opts.all) {
+    if (opts.roadmap) {
+      const roadmapPath = opts.roadmap.replace(/^@/, '');
+      await executeFromRoadmap(roadmapPath, { ...executorOpts, trackingIssue: opts.issue });
+    } else if (opts.all) {
       await executeAllEpics(executorOpts);
     } else if (opts.epic != null) {
       await executeEpic(opts.epic, executorOpts);
     } else {
-      console.error('Error: specify --epic <n> or --all');
+      console.error('Error: specify --roadmap <path>, --epic <n>, or --all');
       process.exit(1);
     }
   });

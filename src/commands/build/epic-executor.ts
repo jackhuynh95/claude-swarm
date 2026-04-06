@@ -4,6 +4,7 @@ import ora from 'ora';
 import { createPullRequest } from '../watch/phases/branch-manager.js';
 import { getPhaseConfig } from '../watch/phases/model-router.js';
 import { loadProjectConfig } from '../../config-resolver.js';
+import { parseRoadmap, type Epic, type Issue } from './roadmap-parser.js';
 import type { ClaudeModel, EffortLevel, ModelOverrides, PhaseModelConfig, PhaseType } from '../watch/types.js';
 
 type Step = 'plan' | 'plan-red-team' | 'cook' | 'test' | 'predict' | 'ship';
@@ -304,4 +305,111 @@ export async function cookEpicIssues(epicNumber: number, opts: ExecutorOptions =
     const result  = await runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts, configModels);
     result.success ? spinner.succeed() : spinner.fail(chalk.red(result.stderr.slice(0, 120)));
   }
+}
+
+// ─── Roadmap-based execution (reads from docs/roadmap.md, syncs to GitHub issue) ─
+
+/** Check a task in the [Milestone] issue body: replace `- [ ] {title}` → `- [x] {title}` */
+function checkMilestoneTask(issueNumber: number, taskTitle: string): void {
+  try {
+    const raw = execSync(`gh issue view ${issueNumber} --json body`, { encoding: 'utf-8' });
+    const { body } = JSON.parse(raw) as { body: string };
+    // Escape regex special chars in title for safe matching
+    const escaped = taskTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const updated = body.replace(new RegExp(`- \\[ \\] ${escaped}`), `- [x] ${taskTitle}`);
+    if (updated === body) return;
+    execSync(`gh issue edit ${issueNumber} --body ${JSON.stringify(updated)}`, { stdio: 'pipe' });
+  } catch {
+    // Non-critical — log and continue
+    console.error(chalk.dim(`  ⚠ Failed to update checklist for: ${taskTitle.slice(0, 50)}`));
+  }
+}
+
+/** Read the roadmap file and build a flat task list with phase context. */
+function loadRoadmapTasks(roadmapPath: string): Array<{ epic: Epic; issue: Issue; epicIndex: number; issueIndex: number }> {
+  const filePath = roadmapPath.replace(/^@/, '');
+  const roadmap = parseRoadmap(filePath);
+  const tasks: Array<{ epic: Epic; issue: Issue; epicIndex: number; issueIndex: number }> = [];
+  for (let ei = 0; ei < roadmap.epics.length; ei++) {
+    const epic = roadmap.epics[ei];
+    for (let ii = 0; ii < epic.issues.length; ii++) {
+      tasks.push({ epic, issue: epic.issues[ii], epicIndex: ei, issueIndex: ii });
+    }
+  }
+  return tasks;
+}
+
+/**
+ * Execute tasks from a roadmap file directly (no GitHub epic issues needed).
+ * Optionally syncs progress to a [Milestone] tracking issue.
+ */
+export async function executeFromRoadmap(
+  roadmapPath: string,
+  opts: ExecutorOptions & { trackingIssue?: number } = {},
+): Promise<void> {
+  const tasks = loadRoadmapTasks(roadmapPath);
+  const configModels = loadProjectConfig().models;
+  const totalTasks = tasks.length;
+  let completed = 0;
+  let failed = 0;
+
+  console.log(chalk.blue(`\n▶ Running ${totalTasks} task(s) from roadmap`));
+  if (opts.trackingIssue) {
+    console.log(chalk.dim(`  Syncing progress to issue #${opts.trackingIssue}`));
+  }
+
+  let currentEpicIndex = -1;
+
+  for (const { epic, issue, epicIndex } of tasks) {
+    const taskNum = parseInt(issue.id, 10);
+
+    // Skip tasks before --from-issue
+    if (opts.fromIssue && taskNum < opts.fromIssue) {
+      console.log(chalk.dim(`  ⟶ Task ${issue.id} skipped (--from-issue ${opts.fromIssue})`));
+      continue;
+    }
+
+    // Skip epics before --from-epic
+    if (opts.fromEpic && epicIndex + 1 < opts.fromEpic) {
+      continue;
+    }
+
+    // Print epic header when switching to a new phase
+    if (epicIndex !== currentEpicIndex) {
+      currentEpicIndex = epicIndex;
+      console.log(chalk.blue(`\n  ── ${epic.title} ──`));
+    }
+
+    if (opts.dryRun) {
+      console.log(chalk.cyan(`  [DRY RUN] Task ${issue.id}: ${issue.title}`));
+      continue;
+    }
+
+    console.log(chalk.white(`\n  ► Task ${issue.id}: ${issue.title}`));
+
+    // Build pipeline: cook the task (plan + cook + test)
+    const autoFlag = opts.auto ? ' --auto' : '';
+    const cookPrompt = `/ck:cook${autoFlag} Implement task: ${issue.title}`;
+
+    const spinner = ora(`    cooking...`).start();
+    const result = await runStep('cook', cookPrompt, opts, configModels);
+    const dur = (result.durationMs / 1000).toFixed(1);
+
+    if (result.success) {
+      spinner.succeed(chalk.green(`    ✓ Task ${issue.id} (${dur}s)`));
+      completed++;
+
+      // Sync to GitHub issue
+      if (opts.trackingIssue) {
+        checkMilestoneTask(opts.trackingIssue, issue.title);
+      }
+    } else {
+      spinner.fail(chalk.red(`    ✗ Task ${issue.id} (${dur}s)`));
+      if (result.stderr) console.error(chalk.dim(`      ${result.stderr.slice(0, 200)}`));
+      failed++;
+    }
+  }
+
+  // Summary
+  console.log(chalk.green(`\n✓ Roadmap execution complete: ${completed}/${totalTasks} succeeded, ${failed} failed`));
 }

@@ -36,9 +36,8 @@ export async function fromScratch(opts: FromScratchOptions): Promise<void> {
     return;
   }
 
-  showStep(2, 3, 'Creating GitHub issues...');
-  // TODO: Phase 1 — replace stub with initFromRoadmap()
-  console.log(chalk.yellow('⚠ Init not yet implemented. Run manually: claude-swarm build init @<roadmap-path>'));
+  showStep(2, 3, 'Creating GitHub [Milestone] issue...');
+  console.log(chalk.yellow('⚠ Run manually: claude-swarm build init @<roadmap-path>'));
 
   showStep(3, 3, 'Executing epics...');
   // TODO: Phase 3 — replace stub with runEpics()

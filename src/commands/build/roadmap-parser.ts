@@ -74,10 +74,64 @@ function detectType(title: string): Issue['type'] {
 // ─── Table Parsing ────────────────────────────────────────────────────────────
 
 /**
+ * Detect if a table is a task table (has numeric IDs + task/status columns)
+ * vs a non-task table (component catalog, summary, benefits comparison, etc.)
+ *
+ * Heuristics:
+ * - Header row should contain task-related terms (#, Task, Status, etc.)
+ * - Data rows should have numeric IDs
+ * - At least 3 columns (id, title, status)
+ */
+function isTaskTable(tableBlock: string): boolean {
+  const lines = tableBlock
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.startsWith('|'));
+
+  if (lines.length < 3) return false; // need header + separator + at least 1 row
+
+  // Check header row for task-like column names
+  const headerCells = lines[0].split('|').slice(1, -1).map(c => c.trim().toLowerCase());
+  const hasTaskHeader = headerCells.some(c =>
+    /^(task|description|action|item)$/i.test(c)
+  );
+  const hasStatusHeader = headerCells.some(c =>
+    /^(status|state|done|progress)$/i.test(c)
+  );
+  const hasIdHeader = headerCells.some(c =>
+    /^(#|no\.?|id|num)$/i.test(c)
+  );
+
+  // Strong signal: has both task-like and status-like headers with ID column
+  if (hasIdHeader && hasTaskHeader && hasStatusHeader) return true;
+
+  // Fallback: check data rows for numeric IDs (but require task+status header pattern)
+  if (!hasTaskHeader && !hasStatusHeader) return false;
+
+  let numericIdCount = 0;
+  let dataRowCount = 0;
+
+  for (const line of lines) {
+    if (/^\|[-:| ]+\|$/.test(line)) continue;
+    const cells = line.split('|').slice(1, -1).map(c => c.trim());
+    if (cells.length < 2) continue;
+    if (/^#$|^no\.?$/i.test(cells[0] ?? '')) continue;
+
+    dataRowCount++;
+    if (/^\d+$/.test(cells[0] ?? '')) numericIdCount++;
+  }
+
+  return dataRowCount > 0 && numericIdCount / dataRowCount > 0.5;
+}
+
+/**
  * Parse a markdown table block into issues + sub-issues.
  * Sub-issues: rows where the first column (id) is empty or whitespace-only.
+ * Only parses tables with numeric IDs (task tables).
  */
 function parseTable(tableBlock: string): Issue[] {
+  if (!isTaskTable(tableBlock)) return [];
+
   const lines = tableBlock
     .split('\n')
     .map(l => l.trim())
@@ -106,9 +160,10 @@ function parseTable(tableBlock: string): Issue[] {
     const [idCell, titleCell, statusCell] = cells;
     const title = titleCell ?? '';
 
-    // Empty or whitespace id = sub-issue of the current parent
-    if (!idCell || /^\s*$/.test(idCell)) {
-      if (current !== null && title) {
+    // Only accept rows with numeric IDs as issues
+    if (!idCell || !/^\d+$/.test(idCell)) {
+      // Non-numeric id = sub-issue of current parent (if whitespace/empty)
+      if ((!idCell || /^\s*$/.test(idCell)) && current !== null && title) {
         const subs = rawSubsMap.get(issues.length - 1) ?? [];
         subs.push(title);
         rawSubsMap.set(issues.length - 1, subs);
@@ -158,9 +213,12 @@ function parseEpics(content: string, format: 'phase' | 'epic'): Epic[] {
     const lines = section.split('\n');
     const title = lines[0].replace(/^#{2,3}\s+/, '').trim();
 
+    // Strip code fences (```...```) to avoid parsing inline tables in code blocks
+    const stripped = section.replace(/```[\s\S]*?```/g, '');
+
     // Extract all table blocks within this section
     const tablePattern = /(\|.+\n)+/g;
-    const tableMatches = section.match(tablePattern) ?? [];
+    const tableMatches = stripped.match(tablePattern) ?? [];
     const issues = tableMatches.flatMap(t => parseTable(t));
 
     return EpicSchema.parse({ title, issues });

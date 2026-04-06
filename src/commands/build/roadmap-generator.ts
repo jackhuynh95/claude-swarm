@@ -7,9 +7,9 @@ import chalk from 'chalk';
 // ─── Model routing: generate step → claude model ─────────────────────────────
 
 const MODEL_MAP_GENERATE = {
-  brainstorm: 'claude-opus-4-5',    // deep creative thinking for scope exploration
-  plan:       'claude-opus-4-5',    // architectural reasoning for full roadmap
-  scenario:   'claude-sonnet-4-5',  // BDD test case generation per epic
+  brainstorm: 'claude-opus-4-6',    // deep creative thinking for scope exploration
+  plan:       'claude-opus-4-6',    // architectural reasoning for full roadmap
+  scenario:   'claude-sonnet-4-6',  // BDD test case generation per epic
 } as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
