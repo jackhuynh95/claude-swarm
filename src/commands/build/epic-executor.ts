@@ -404,10 +404,10 @@ export async function executeFromRoadmap(
     const autoFlag = opts.auto ? ' --auto' : '';
     const cookPrompt = `/ck:cook${autoFlag} Implement task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}`;
 
-    // --auto implies --permission-mode auto if not explicitly set
+    // --auto implies --dangerously-skip-permissions if not explicitly set
     const effectiveOpts = { ...opts };
     if (opts.auto && !opts.permissionMode) {
-      effectiveOpts.permissionMode = 'auto';
+      effectiveOpts.permissionMode = 'skip';
     }
 
     const spinner = ora(`    cooking...`).start();
