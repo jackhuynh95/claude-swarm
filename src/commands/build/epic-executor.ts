@@ -308,7 +308,7 @@ export async function cookEpicIssues(epicNumber: number, opts: ExecutorOptions =
 
 // ─── Roadmap-based execution (reads from docs/roadmap.md, syncs to GitHub issue) ─
 
-/** Check a task in the [Milestone] issue body: replace `- [ ] {title}` → `- [x] {title}` */
+/** Check a task in the [MILESTONE] issue body: replace `- [ ] {title}` → `- [x] {title}` */
 function checkMilestoneTask(issueNumber: number, taskTitle: string): void {
   try {
     const raw = execSync(`gh issue view ${issueNumber} --json body`, { encoding: 'utf-8' });
@@ -342,7 +342,7 @@ function loadRoadmapTasks(roadmapPath: string): Array<{ epic: Epic; issue: Issue
 /**
  * Execute tasks from a roadmap file directly (no GitHub epic issues needed).
  * Use --phase N to run a single phase, or --all / omit for all phases.
- * Optionally syncs progress to a [Milestone] tracking issue via --issue N.
+ * Optionally syncs progress to a [MILESTONE] tracking issue via --issue N.
  */
 export async function executeFromRoadmap(
   roadmapPath: string,

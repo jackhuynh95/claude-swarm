@@ -1,8 +1,8 @@
 /**
  * GitHub Hierarchy Creator — takes a parsed Roadmap and creates
- * a single [Milestone] tracking issue with all phases/tasks as checklist.
+ * a single [MILESTONE] tracking issue with all phases/tasks as checklist.
  *
- * 1 roadmap = 1 GitHub issue (with [Milestone] prefix)
+ * 1 roadmap = 1 GitHub issue (with [MILESTONE] prefix)
  */
 
 import { spawnSync } from 'node:child_process';
@@ -24,7 +24,7 @@ interface InitResult {
 
 // ─── Build issue body from roadmap ────────────────────────────────────────────
 
-/** Build [Milestone] issue body with phase headings and task checklists. */
+/** Build [MILESTONE] issue body with phase headings and task checklists. */
 function buildMilestoneBody(roadmap: Roadmap): string {
   const lines: string[] = [];
   lines.push(`## Phases`);
@@ -58,7 +58,7 @@ function gh(args: string[]): string {
   return result.stdout.trim();
 }
 
-// ─── Main: create single [Milestone] issue from parsed roadmap ────────────────
+// ─── Main: create single [MILESTONE] issue from parsed roadmap ────────────────
 
 export async function initFromRoadmap(roadmap: Roadmap, opts: InitOptions = {}): Promise<InitResult | null> {
   const milestoneTitle = roadmap.milestone
@@ -66,7 +66,7 @@ export async function initFromRoadmap(roadmap: Roadmap, opts: InitOptions = {}):
     .trim();
 
   const totalIssues = roadmap.epics.reduce((sum, e) => sum + e.issues.length, 0);
-  const issueTitle = `[Milestone] ${milestoneTitle}`;
+  const issueTitle = `[MILESTONE] ${milestoneTitle}`;
 
   if (opts.dryRun) {
     console.log(chalk.yellow('\n--- DRY RUN: would create ---'));
@@ -82,7 +82,7 @@ export async function initFromRoadmap(roadmap: Roadmap, opts: InitOptions = {}):
     return null;
   }
 
-  const spinner = ora(`Creating [Milestone] issue: ${milestoneTitle}`).start();
+  const spinner = ora(`Creating [MILESTONE] issue: ${milestoneTitle}`).start();
 
   try {
     const body = buildMilestoneBody(roadmap);
@@ -93,7 +93,7 @@ export async function initFromRoadmap(roadmap: Roadmap, opts: InitOptions = {}):
     if (!numMatch) throw new Error(`Failed to parse issue number from: ${url}`);
     const issueNumber = parseInt(numMatch[1], 10);
 
-    spinner.succeed(chalk.green(`[Milestone] #${issueNumber}: ${milestoneTitle}`));
+    spinner.succeed(chalk.green(`[MILESTONE] #${issueNumber}: ${milestoneTitle}`));
     console.log(chalk.dim(`  ${roadmap.epics.length} phases, ${totalIssues} tasks`));
     console.log(chalk.dim(`  ${url}`));
 

@@ -36,7 +36,7 @@ export async function fromScratch(opts: FromScratchOptions): Promise<void> {
     return;
   }
 
-  showStep(2, 3, 'Creating GitHub [Milestone] issue...');
+  showStep(2, 3, 'Creating GitHub [MILESTONE] issue...');
   console.log(chalk.yellow('⚠ Run manually: claude-swarm build init @<roadmap-path>'));
 
   showStep(3, 3, 'Executing epics...');
