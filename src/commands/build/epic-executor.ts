@@ -278,10 +278,6 @@ export async function executeAllEpics(opts: ExecutorOptions = {}): Promise<void>
   console.log(chalk.blue(`\n▶ Running ${epics.length} epic(s)`));
   for (const epicNumber of epics) await executeEpic(epicNumber, opts);
   console.log(chalk.green('\n✓ All epics processed'));
-
-  if (!opts.dryRun) {
-    commitAndPush(`build run — ${epics.length} epic(s) completed`);
-  }
 }
 
 // ─── Single-step epic runners (for `build plan` / `build cook` subcommands) ───
@@ -307,28 +303,6 @@ export async function cookEpicIssues(epicNumber: number, opts: ExecutorOptions =
     const spinner = ora(`  #${child.number}: ${child.title}`).start();
     const result  = await runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts, configModels);
     result.success ? spinner.succeed() : spinner.fail(chalk.red(result.stderr.slice(0, 120)));
-  }
-}
-
-// ─── Post-run: commit & push any uncommitted changes ─────────────────────────
-
-/** Check for uncommitted changes, commit with summary, and push. */
-function commitAndPush(label: string): void {
-  try {
-    const status = execSync('git status --porcelain', { encoding: 'utf-8' }).trim();
-    if (!status) {
-      console.log(chalk.dim('\n  No uncommitted changes to commit.'));
-      return;
-    }
-
-    const spinner = ora('  Committing & pushing changes...').start();
-    const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
-    execSync('git add -A', { stdio: 'pipe' });
-    spawnSync('git', ['commit', '-m', `feat: ${label}`], { stdio: 'pipe' });
-    execSync(`git push origin ${branch}`, { stdio: 'pipe' });
-    spinner.succeed(chalk.green(`  Committed & pushed to ${branch}`));
-  } catch (err) {
-    console.error(chalk.yellow(`\n  ⚠ Auto-commit failed: ${String(err).slice(0, 100)}`));
   }
 }
 
@@ -444,10 +418,4 @@ export async function executeFromRoadmap(
 
   // Summary
   console.log(chalk.green(`\n✓ Roadmap execution complete: ${completed}/${totalTasks} succeeded, ${failed} failed`));
-
-  // Auto-commit & push if any tasks succeeded
-  if (completed > 0 && !opts.dryRun) {
-    const phaseLabel = opts.phase != null ? `phase ${opts.phase}` : 'all phases';
-    commitAndPush(`build run — ${phaseLabel} (${completed}/${totalTasks} tasks)`);
-  }
 }
