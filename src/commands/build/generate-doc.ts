@@ -167,7 +167,7 @@ export async function generateDoc(opts: GenerateDocOptions): Promise<void> {
     model:   opts.model,
     effort:  opts.effort ?? 'high',
     budget:  opts.budget,
-    timeout: opts.timeout,
+    timeout: opts.timeout ?? 1800,  // 30 min default for doc generation (Opus is slow)
   });
 
   if (!result.success) {
