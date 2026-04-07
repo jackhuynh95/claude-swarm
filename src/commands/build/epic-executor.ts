@@ -236,8 +236,9 @@ export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}
       pipeline.push({ name: 'plan',          fn: () => runStep('plan',          `/ck:plan --fast Implement #${child.number}: ${child.title}`,    opts, configModels) });
     }
 
-    pipeline.push({ name: 'cook', fn: () => runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts, configModels) });
-    pipeline.push({ name: 'test', fn: () => runStep('test', `/ck:test`,                                         opts, configModels) });
+    pipeline.push({ name: 'cook',   fn: () => runStep('cook', `/ck:cook --auto #${child.number}: ${child.title}`, opts, configModels) });
+    pipeline.push({ name: 'commit', fn: () => runStep('ship', `/ck:git cm Stage and commit all changes for #${child.number}: ${child.title}`, opts, configModels) });
+    pipeline.push({ name: 'test',   fn: () => runStep('test', `/ck:test`,                                         opts, configModels) });
 
     if (opts.hard) {
       pipeline.push({ name: 'predict', fn: () => runStep('predict', `/ck:predict #${child.number}: ${child.title}`, opts, configModels) });
@@ -403,6 +404,14 @@ export async function executeFromRoadmap(
 
     if (result.success) {
       spinner.succeed(chalk.green(`    ✓ Task ${issue.id} (${dur}s)`));
+
+      // Commit after each successful cook (same as bash scripts: /ck:git cm)
+      const cmSpinner = ora(`    committing...`).start();
+      const cmResult = await runStep('ship', `/ck:git cm Stage and commit all changes for task: ${issue.title}`, opts, configModels);
+      cmResult.success
+        ? cmSpinner.succeed(chalk.green(`    committed`))
+        : cmSpinner.warn(chalk.yellow(`    commit skipped (no changes or failed)`));
+
       completed++;
 
       // Sync to GitHub issue
@@ -418,4 +427,13 @@ export async function executeFromRoadmap(
 
   // Summary
   console.log(chalk.green(`\n✓ Roadmap execution complete: ${completed}/${totalTasks} succeeded, ${failed} failed`));
+
+  // Final commit + push (same as bash scripts: /ck:git cp)
+  if (completed > 0 && !opts.dryRun) {
+    const cpSpinner = ora(`  Final commit + push...`).start();
+    const cpResult = await runStep('ship', '/ck:git cp Stage, commit and push all changes.', opts, configModels);
+    cpResult.success
+      ? cpSpinner.succeed(chalk.green(`  Committed & pushed`))
+      : cpSpinner.warn(chalk.yellow(`  Push may have failed — check git status`));
+  }
 }
