@@ -60,6 +60,100 @@ graph LR
 
 ---
 
+## Concept Comparison
+
+**Rule**: copy the memory architecture idea, not the Python codebase.
+
+We should reuse the concept from `claude-memory-compiler`:
+
+```text
+capture -> compile -> index -> retrieve -> reinject
+```
+
+We should NOT port its Python scripts 1:1 into this repo. `claude-swarm` should implement the same loop in Node.js and fit the existing watcher + builder flows.
+
+### Side-by-side
+
+```text
++---------------------------+----------------------------------+-------------------------------------------+
+| Area                      | Author already did               | What claude-swarm should do next          |
++---------------------------+----------------------------------+-------------------------------------------+
+| Capture                   | SessionEnd / PreCompact hooks    | Add local Node.js hooks                   |
+| Raw memory                | transcript -> daily logs         | Save raw session notes / raw logs         |
+| Curation                  | compile.py builds knowledge      | Build Node.js note classifier + compiler  |
+| Knowledge structure       | concepts / connections / qa      | lessons / patterns / decisions            |
+| Retrieval                 | index-guided retrieval           | Curated index + better ranking            |
+| Reinjection               | SessionStart injects context     | Inject before /ck:plan and roadmap cook   |
+| Quality control           | lint / stale / contradiction     | Add alignment / lint later                |
+| Stack                     | Python                           | Node.js only for implementation           |
++---------------------------+----------------------------------+-------------------------------------------+
+```
+
+### Current vs Future
+
+```text
+AUTHOR: claude-memory-compiler
+--------------------------------------------
+Claude session
+  -> hooks capture transcript
+  -> raw daily logs
+  -> compiler reads logs
+  -> structured knowledge articles
+  -> index.md
+  -> session-start injects index
+  -> next session uses memory
+
+
+OURS: claude-swarm today
+--------------------------------------------
+GitHub issue / roadmap task
+  -> watcher flow or builder flow
+  -> post-ship journal-writer
+  -> Notes/ lessons
+  -> vault-context-loader
+  -> next /ck:plan gets basic vault context
+
+Gap:
+  - no raw session capture pipeline
+  - no compiled knowledge index
+  - retrieval is still simple keyword scoring
+  - roadmap-loader path has no reminder/record step after cook succeeds
+
+
+OURS: claude-swarm target
+--------------------------------------------
+Issue / task / session
+  -> local Node.js hooks capture raw notes
+  -> Raw/
+  -> classifier promotes reusable knowledge
+  -> Knowledge/
+     -> index.md
+     -> Lessons/
+     -> Patterns/
+     -> Decisions/
+  -> retrieval picks relevant notes
+  -> /ck:plan and builder get better context
+  -> journal / record / promote loop repeats
+```
+
+### Node.js-first implementation rule
+
+```text
+COPY THE IDEA
+-------------
+capture -> compile -> index -> retrieve -> reinject
+
+DO NOT COPY
+-----------
+python scripts
+repo structure 1:1
+exact hooks implementation
+exact file names
+exact article taxonomy
+```
+
+---
+
 ## Phase 1 — Note Classifier
 
 **Goal**: Claude reads a note and classifies: promote / skip / project-specific.
@@ -252,15 +346,17 @@ next poll cycle:
 
 ## Phase 8 — Builder Integration
 
-**Goal**: Builder gets smart sync — same modules, wired into epic-executor.
+**Goal**: Builder gets smart sync and memory capture, especially in roadmap-loader execution via `executeFromRoadmap()` in `src/commands/build/epic-executor.ts`.
 
 | # | Task | Status |
 |---|---|---|
 | 44 | `build generate`: smart-push before brainstorm (inject context) | Pending |
 | 45 | `build run`: smart-push before each issue's /ck:plan | Pending |
 | 46 | `build run`: smart-pull after each issue completes | Pending |
-| 47 | `build from-scratch`: smart-push at start, smart-pull at end | Pending |
-| 48 | Respect same loop-prevention rules from Phase 6 | Pending |
+| 47 | `build run --roadmap`: add reminder/record step after successful `/ck:cook` in `executeFromRoadmap()` before commit | Pending |
+| 48 | `build run --roadmap`: write run summary / lesson candidate for roadmap tasks (roadmap loader has no post-ship journal today) | Pending |
+| 49 | `build from-scratch`: smart-push at start, smart-pull at end | Pending |
+| 50 | Respect same loop-prevention rules from Phase 6 | Pending |
 
 **Builder flow with smart sync**:
 ```
@@ -274,9 +370,40 @@ build run --epic 1 --auto
     → SMART PUSH (inject relevant notes for THIS issue)
     → /ck:plan (knows team conventions)
     → /ck:cook (follows standards)
+    → builder reminder / record step
     → /ck:test
     → /ck:ship
     → SMART PULL (promote new lessons)
+
+build run --roadmap @docs/implement-roadmap-x.md
+  → executeFromRoadmap()
+  → for each roadmap task:
+    → SMART PUSH (inject relevant notes for THIS task)
+    → /ck:cook
+    → roadmap reminder / record step
+    → /ck:git cm
+    → SMART PULL
+```
+
+**Current roadmap-loader gap to fix**:
+
+```text
+watcher today
+  execute
+  -> slack-report
+  -> journal-writer
+  -> run-recorder
+
+roadmap loader today (`executeFromRoadmap()`)
+  execute
+  -> /ck:cook
+  -> /ck:git cm
+  -> optional checklist sync
+
+Missing in roadmap loader:
+  - no reminder to capture reusable lesson after cook
+  - no structured run record for roadmap tasks
+  - no journal-style memory artifact at the end
 ```
 
 ---
@@ -326,5 +453,5 @@ claude-swarm sync push --project medusa --force
 | 5 | CLI Wiring | `sync-command.ts` | 8 |
 | 6 | Loop Prevention (safety) | frontmatter rules in pull/push | 4 |
 | 7 | Watcher Integration (auto) | `post-ship-runner.ts` | 4 |
-| 8 | Builder Integration (auto) | `epic-executor.ts` | 5 |
-| **Total** | | **5 new + 2 upgraded** | **48 tasks** |
+| 8 | Builder Integration + Roadmap Loader Memory Capture | `src/commands/build/epic-executor.ts` | 7 |
+| **Total** | | **5 new + 2 upgraded** | **50 tasks** |
