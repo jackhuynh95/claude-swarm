@@ -1,8 +1,9 @@
 # Smart Vault Sync — Implementation Roadmap
 
 **Date**: 2026-04-06
-**Goal**: AI-powered knowledge sync between project vaults and second-brain
-**Location**: `src/commands/sync/` inside claude-swarm repo + `second-brain/` scripts
+**Goal**: teach the active project to gather and reuse its own lessons every day
+**Priority**: Primary first = inside the current target project. Secondary later = optional global/shared second-brain.
+**Location**: start inside the project vault first. Only then extend to shared/global sync.
 
 ---
 
@@ -11,10 +12,55 @@
 Dumb copy syncs everything — noise, project-specific fixes, irrelevant notes.
 Smart sync uses Claude to classify, filter, and align knowledge before syncing.
 
+This roadmap follows one strict rule:
+
+```text
+PRIMARY FIRST
+  current target project only
+  examples: #medusa, #goldmine
+
+SECONDARY LATER
+  optional global/shared second-brain
+  only after primary works well
+```
+
 ```
 DUMB (current):  cp *.md → second-brain/     (everything, no filter)
 SMART (target):  Claude reads → classifies → promotes only reusable → second-brain/
                  Claude reads second-brain → filters relevant → injects into project
+```
+
+---
+
+## Priority Split
+
+```text
+Primary = inside the current target project
+  purpose:
+    teach the project
+    gather lessons daily
+    reuse them on the next issue / next roadmap task
+
+Secondary = global/shared second-brain
+  purpose:
+    promote only proven reusable knowledge
+    after the inside-project loop is already stable
+
+Rule:
+  do not go far into global/shared sync before the inside loop works
+```
+
+Build helpers should follow the same split:
+
+```text
+build-smart-vault-sync-primary.sh
+  runs P1 -> P6 only
+
+build-smart-vault-sync-secondary.sh
+  runs S1 -> S4 only
+
+build-smart-vault-sync.sh
+  compatibility wrapper only
 ```
 
 ---
@@ -79,11 +125,11 @@ We should NOT port its Python scripts 1:1 into this repo. `claude-swarm` should 
 | Area                      | Author already did               | What claude-swarm should do next          |
 +---------------------------+----------------------------------+-------------------------------------------+
 | Capture                   | SessionEnd / PreCompact hooks    | Add local Node.js hooks                   |
-| Raw memory                | transcript -> daily logs         | Save raw session notes / raw logs         |
-| Curation                  | compile.py builds knowledge      | Build Node.js note classifier + compiler  |
+| Raw memory                | transcript -> daily logs         | Save project-inside raw notes / run logs  |
+| Curation                  | compile.py builds knowledge      | Build Node.js classifier + compiler       |
 | Knowledge structure       | concepts / connections / qa      | lessons / patterns / decisions            |
 | Retrieval                 | index-guided retrieval           | Curated index + better ranking            |
-| Reinjection               | SessionStart injects context     | Inject before /ck:plan and roadmap cook   |
+| Reinjection               | SessionStart injects context     | Inject inside same project first          |
 | Quality control           | lint / stale / contradiction     | Add alignment / lint later                |
 | Stack                     | Python                           | Node.js only for implementation           |
 +---------------------------+----------------------------------+-------------------------------------------+
@@ -118,6 +164,7 @@ Gap:
   - no compiled knowledge index
   - retrieval is still simple keyword scoring
   - roadmap-loader path has no reminder/record step after cook succeeds
+  - no strict primary-first separation from global/shared sync
 
 
 OURS: claude-swarm target
@@ -132,7 +179,7 @@ Issue / task / session
      -> Patterns/
      -> Decisions/
   -> retrieval picks relevant notes
-  -> /ck:plan and builder get better context
+  -> /ck:plan and builder get better context inside same project
   -> journal / record / promote loop repeats
 ```
 
@@ -154,7 +201,24 @@ exact article taxonomy
 
 ---
 
-## Phase 1 — Note Classifier
+## Primary Roadmap
+
+Primary means: focus on the inside belonging to the current target project first.
+
+```text
+Examples:
+  medusa/obsidian-vault/
+  goldmine/obsidian-vault/
+
+Primary success means:
+  - capture lessons daily
+  - reuse them on the next task
+  - watcher and roadmap-loader both participate
+```
+
+---
+
+## P1 — Project Note Classifier
 
 **Goal**: Claude reads a note and classifies: promote / skip / project-specific.
 
@@ -182,9 +246,35 @@ Output JSON: { action, reason, category }
 
 ---
 
-## Phase 2 — Smart Pull (Project → Second Brain)
+## P2 — Project Knowledge Capture
 
-**Goal**: Only promote reusable notes, skip project-specific ones.
+**Goal**: capture lessons inside the current project before any global/shared promotion.
+
+| # | Task | Status |
+|---|---|---|
+| P2.1 | Extend project vault structure for local reusable knowledge: `Knowledge/Lessons`, `Knowledge/Patterns`, `Knowledge/Decisions` | Pending |
+| P2.2 | Teach `journal-writer` and `run-recorder` outputs to feed local knowledge capture first | Pending |
+| P2.3 | Add roadmap-loader reminder after successful `/ck:cook` so builder tasks also produce lesson candidates | Pending |
+| P2.4 | Store provenance in frontmatter: issue/task, project, date, source phase | Pending |
+
+---
+
+## P3 — Project Context Reuse
+
+**Goal**: reuse the same project's proven lessons on the next issue/task.
+
+| # | Task | Status |
+|---|---|---|
+| P3.1 | Upgrade `vault-context-loader.ts` to read curated `Knowledge/` notes first | Pending |
+| P3.2 | Rank local notes by task relevance, recency, and category priority | Pending |
+| P3.3 | Inject project-inside context before watcher `/ck:plan` and roadmap-loader `/ck:cook` | Pending |
+| P3.4 | Keep retrieval local-first; do not depend on global/shared notes in primary mode | Pending |
+
+---
+
+## S1 — Promote Proven Project Notes To Global Brain
+
+**Goal**: Optional later step. Promote only proven reusable notes out of the project into a shared/global brain.
 
 | # | Task | Status |
 |---|---|---|
@@ -210,9 +300,9 @@ smart-pull:
 
 ---
 
-## Phase 3 — Smart Push (Second Brain → Project)
+## S2 — Optional Global Knowledge Push Into Project
 
-**Goal**: Inject only relevant knowledge when starting new work on a project.
+**Goal**: Optional later step. Inject only relevant global/shared knowledge back into a project.
 
 | # | Task | Status |
 |---|---|---|
@@ -241,9 +331,9 @@ smart-push --project medusa --context "Add analytics dashboard to Vue admin":
 
 ---
 
-## Phase 4 — Alignment Check
+## S3 — Global Alignment Check
 
-**Goal**: Detect conflicts between project vault notes and second-brain notes.
+**Goal**: Optional later step. Detect conflicts between project vault notes and shared/global notes.
 
 | # | Task | Status |
 |---|---|---|
@@ -264,9 +354,9 @@ alignment-check:
 
 ---
 
-## Phase 5 — CLI Wiring
+## S4 — Shared Sync CLI
 
-**Goal**: Wire into `claude-swarm sync` subcommand.
+**Goal**: Optional later step. Wire global/shared sync into `claude-swarm sync` subcommand.
 
 | # | Task | Status |
 |---|---|---|
@@ -281,9 +371,9 @@ alignment-check:
 
 ---
 
-## Phase 6 — Loop Prevention (Safety)
+## P4 — Primary Metadata + Safety
 
-**Goal**: Prevent infinite sync loops between vaults.
+**Goal**: Keep project-inside memory safe, track provenance, and prevent bad reprocessing.
 
 | # | Task | Status |
 |---|---|---|
@@ -317,9 +407,9 @@ Rule 3: Skip notes with source-project frontmatter
 
 ---
 
-## Phase 7 — Watcher Integration
+## P5 — Watcher Integration
 
-**Goal**: Auto-sync after watcher completes issues. One-shot per cycle.
+**Goal**: Teach the active project through watcher runs. One-shot per cycle.
 
 | # | Task | Status |
 |---|---|---|
@@ -344,9 +434,9 @@ next poll cycle:
 
 ---
 
-## Phase 8 — Builder Integration
+## P6 — Builder / Roadmap Loader Integration
 
-**Goal**: Builder gets smart sync and memory capture, especially in roadmap-loader execution via `executeFromRoadmap()` in `src/commands/build/epic-executor.ts`.
+**Goal**: Builder gets project-inside memory capture, especially in roadmap-loader execution via `executeFromRoadmap()` in `src/commands/build/epic-executor.ts`.
 
 | # | Task | Status |
 |---|---|---|
@@ -444,14 +534,16 @@ claude-swarm sync push --project medusa --force
 
 ## Summary
 
-| Phase | What | Files | Tasks |
-|---|---|---|---|
-| 1 | Note Classifier | `note-classifier.ts` | 6 |
-| 2 | Smart Pull (project → brain) | `smart-pull.ts` | 8 |
-| 3 | Smart Push (brain → project) | `smart-push.ts` | 8 |
-| 4 | Alignment Check | `alignment-checker.ts` | 5 |
-| 5 | CLI Wiring | `sync-command.ts` | 8 |
-| 6 | Loop Prevention (safety) | frontmatter rules in pull/push | 4 |
-| 7 | Watcher Integration (auto) | `post-ship-runner.ts` | 4 |
-| 8 | Builder Integration + Roadmap Loader Memory Capture | `src/commands/build/epic-executor.ts` | 7 |
-| **Total** | | **5 new + 2 upgraded** | **50 tasks** |
+| Phase | Track | What | Files | Tasks |
+|---|---|---|---|---|
+| P1 | Primary | Project note classifier | `note-classifier.ts` | 6 |
+| P2 | Primary | Project knowledge capture | `journal-writer.ts`, `run-recorder.ts`, builder hook points | 4 |
+| P3 | Primary | Project context reuse | `vault-context-loader.ts` | 4 |
+| P4 | Primary | Primary metadata + safety | frontmatter rules in pull/push | 4 |
+| P5 | Primary | Watcher integration | `post-ship-runner.ts` | 4 |
+| P6 | Primary | Builder + roadmap-loader memory capture | `src/commands/build/epic-executor.ts` | 7 |
+| S1 | Secondary | Promote proven project notes to global brain | `smart-pull.ts` | 8 |
+| S2 | Secondary | Optional global knowledge push into project | `smart-push.ts` | 8 |
+| S3 | Secondary | Global alignment check | `alignment-checker.ts` | 5 |
+| S4 | Secondary | Shared sync CLI | `sync-command.ts` | 8 |
+| **Total** | | **Primary first, Secondary later** | **5 new + 4 upgraded** | **58** |
