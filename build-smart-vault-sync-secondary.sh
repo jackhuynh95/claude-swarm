@@ -20,6 +20,8 @@ AUTO_MODE=""
 SINGLE_PHASE=""
 FROM_PHASE=""
 BUDGET_PER_CALL="10.00"
+MAX_RETRIES=3
+RETRY_DELAY_SECONDS=5
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -56,6 +58,7 @@ header() {
 run_claude() {
     local prompt="$1" model="${2:-sonnet}" effort="${3:-medium}" budget="${4:-$BUDGET_PER_CALL}"
     local flags="--model $model --effort $effort --output-format text --max-budget-usd $budget"
+    local attempt=1
     [[ "$AUTO_MODE" == "true" ]] && flags="$flags --dangerously-skip-permissions"
 
     if [[ "$DRY_RUN" == "true" ]]; then
@@ -63,10 +66,34 @@ run_claude() {
         return 0
     fi
 
-    info "Claude ($model, effort=$effort, budget=\$$budget): ${prompt:0:80}..."
-    # shellcheck disable=SC2086
-    claude -p "$prompt" $flags 2>&1 | tee -a "$LOG_FILE"
-    local ec=${PIPESTATUS[0]}; [[ $ec -ne 0 ]] && warn "Exit code $ec"; return $ec
+    while [[ $attempt -le $MAX_RETRIES ]]; do
+        local attempt_log
+        attempt_log=$(mktemp)
+        info "Claude ($model, effort=$effort, budget=\$$budget, attempt=$attempt/$MAX_RETRIES): ${prompt:0:80}..."
+        # shellcheck disable=SC2086
+        claude -p "$prompt" $flags 2>&1 | tee -a "$LOG_FILE" "$attempt_log"
+        local ec=${PIPESTATUS[0]}
+
+        if [[ $ec -eq 0 ]]; then
+            rm -f "$attempt_log"
+            return 0
+        fi
+
+        if grep -q 'API Error: 529' "$attempt_log"; then
+            rm -f "$attempt_log"
+            warn "Claude overloaded (529). Retrying in ${RETRY_DELAY_SECONDS}s..."
+            sleep "$RETRY_DELAY_SECONDS"
+            ((attempt++))
+            continue
+        fi
+
+        rm -f "$attempt_log"
+        warn "Exit code $ec"
+        return $ec
+    done
+
+    warn "Claude failed after $MAX_RETRIES attempts"
+    return 1
 }
 
 find_latest_plan() {
@@ -108,28 +135,39 @@ confirm() {
 s1() {
     header "S1: Promote Proven Project Notes To Global Brain"
     run_plan "Create src/commands/sync/smart-pull.ts for secondary/global mode only. Promote only proven reusable notes from project vaults into shared/global second-brain. Skip project-specific notes. Preserve provenance and dry-run behavior."
-    confirm 2; run_cook; run_test; run_ship
+    confirm 2
+    run_cook
+    run_test
+    run_ship
     success "S1 complete"
 }
 
 s2() {
     header "S2: Optional Global Knowledge Push Into Project"
     run_plan "Create src/commands/sync/smart-push.ts for optional global/shared mode. Read shared lessons, patterns, decisions. Filter relevance to project context and inject only when useful. Keep project-inside notes as primary source."
-    confirm 3; run_cook; run_test; run_ship
+    confirm 3
+    run_cook
+    run_test
+    run_ship
     success "S2 complete"
 }
 
 s3() {
     header "S3: Global Alignment Check"
     run_plan "Create src/commands/sync/alignment-checker.ts for shared/global mode. Compare project notes with global notes, detect drift, contradictions, outdated copies, and report recommended direction."
-    confirm 4; run_cook; run_test; run_ship
+    confirm 4
+    run_cook
+    run_test
+    run_ship
     success "S3 complete"
 }
 
 s4() {
     header "S4: Shared Sync CLI"
     run_plan "Create src/commands/sync/sync-command.ts for optional global/shared sync. Commands: sync pull, sync push, sync check. Add dry-run and force fallback. Keep secondary/global scope clearly separate from primary mode."
-    confirm 4; run_cook; run_test
+    confirm 4
+    run_cook
+    run_test
     success "S4 complete — secondary smart vault work done"
 }
 
@@ -167,7 +205,11 @@ main() {
     local nums=(1 2 3 4)
 
     for i in "${!phases[@]}"; do
-        [[ "${nums[$i]}" -ge "$start" ]] && ${phases[$i]} || info "Skipping secondary phase S${nums[$i]}"
+        if [[ "${nums[$i]}" -ge "$start" ]]; then
+            ${phases[$i]}
+        else
+            info "Skipping secondary phase S${nums[$i]}"
+        fi
     done
 
     echo -e "\n${CYAN}══════════════════════════════════════════${NC}"

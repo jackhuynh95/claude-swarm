@@ -20,6 +20,8 @@ AUTO_MODE=""
 SINGLE_PHASE=""
 FROM_PHASE=""
 BUDGET_PER_CALL="10.00"
+MAX_RETRIES=3
+RETRY_DELAY_SECONDS=5
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -56,6 +58,7 @@ header() {
 run_claude() {
     local prompt="$1" model="${2:-sonnet}" effort="${3:-medium}" budget="${4:-$BUDGET_PER_CALL}"
     local flags="--model $model --effort $effort --output-format text --max-budget-usd $budget"
+    local attempt=1
     [[ "$AUTO_MODE" == "true" ]] && flags="$flags --dangerously-skip-permissions"
 
     if [[ "$DRY_RUN" == "true" ]]; then
@@ -63,10 +66,34 @@ run_claude() {
         return 0
     fi
 
-    info "Claude ($model, effort=$effort, budget=\$$budget): ${prompt:0:80}..."
-    # shellcheck disable=SC2086
-    claude -p "$prompt" $flags 2>&1 | tee -a "$LOG_FILE"
-    local ec=${PIPESTATUS[0]}; [[ $ec -ne 0 ]] && warn "Exit code $ec"; return $ec
+    while [[ $attempt -le $MAX_RETRIES ]]; do
+        local attempt_log
+        attempt_log=$(mktemp)
+        info "Claude ($model, effort=$effort, budget=\$$budget, attempt=$attempt/$MAX_RETRIES): ${prompt:0:80}..."
+        # shellcheck disable=SC2086
+        claude -p "$prompt" $flags 2>&1 | tee -a "$LOG_FILE" "$attempt_log"
+        local ec=${PIPESTATUS[0]}
+
+        if [[ $ec -eq 0 ]]; then
+            rm -f "$attempt_log"
+            return 0
+        fi
+
+        if grep -q 'API Error: 529' "$attempt_log"; then
+            rm -f "$attempt_log"
+            warn "Claude overloaded (529). Retrying in ${RETRY_DELAY_SECONDS}s..."
+            sleep "$RETRY_DELAY_SECONDS"
+            ((attempt++))
+            continue
+        fi
+
+        rm -f "$attempt_log"
+        warn "Exit code $ec"
+        return $ec
+    done
+
+    warn "Claude failed after $MAX_RETRIES attempts"
+    return 1
 }
 
 find_latest_plan() {
@@ -108,42 +135,59 @@ confirm() {
 p1() {
     header "P1: Project Note Classifier"
     run_plan "Create src/commands/sync/note-classifier.ts. Primary-first scope only. Classify project-inside notes for the active target. Use Claude haiku with structured output. Categories: lesson, pattern, decision, foundation, project-specific. Batch mode supported."
-    confirm 2; run_cook; run_test; run_ship
+    confirm 2
+    run_cook
+    run_test
+    run_ship
     success "P1 complete"
 }
 
 p2() {
     header "P2: Project Knowledge Capture"
     run_plan "Implement project-inside knowledge capture first. Extend local vault structure for Knowledge/Lessons, Knowledge/Patterns, Knowledge/Decisions. Teach journal-writer and run-recorder outputs to feed local project knowledge first. Add roadmap-loader reminder/record step after successful ck:cook in executeFromRoadmap(). Store provenance in frontmatter."
-    confirm 3; run_cook; run_test; run_ship
+    confirm 3
+    run_cook
+    run_test
+    run_ship
     success "P2 complete"
 }
 
 p3() {
     header "P3: Project Context Reuse"
     run_plan "Upgrade vault-context-loader.ts for local-first retrieval. Read curated project Knowledge notes before raw Notes. Rank by task relevance, recency, and category priority. Inject project-inside context before watcher ck:plan and roadmap-loader ck:cook. Do not depend on global/shared notes in primary mode."
-    confirm 4; run_cook; run_test; run_ship
+    confirm 4
+    run_cook
+    run_test
+    run_ship
     success "P3 complete"
 }
 
 p4() {
     header "P4: Primary Metadata + Safety"
     run_plan "Add project-inside metadata and safety rules. Track provenance in frontmatter for captured notes. Prevent bad reprocessing. Keep local memory artifacts attributable to issue, task, project, and source phase."
-    confirm 5; run_cook; run_test; run_ship
+    confirm 5
+    run_cook
+    run_test
+    run_ship
     success "P4 complete"
 }
 
 p5() {
     header "P5: Watcher Integration"
     run_plan "Wire primary inside-project memory into watcher only. After journal-writer and run-recorder, update local project knowledge. Before ck:plan, load local project knowledge. One-shot per cycle only. No global/shared sync in this phase."
-    confirm 6; run_cook; run_test; run_ship
+    confirm 6
+    run_cook
+    run_test
+    run_ship
     success "P5 complete"
 }
 
 p6() {
     header "P6: Builder / Roadmap Loader Integration"
     run_plan "Wire primary inside-project memory into src/commands/build/epic-executor.ts, especially executeFromRoadmap(). After successful ck:cook, add reminder/record step, write run summary and lesson candidate, then continue to commit. Keep focus on project-inside memory only."
-    confirm 6; run_cook; run_test
+    confirm 6
+    run_cook
+    run_test
     success "P6 complete — primary smart vault work done"
 }
 
@@ -183,7 +227,11 @@ main() {
     local nums=(1 2 3 4 5 6)
 
     for i in "${!phases[@]}"; do
-        [[ "${nums[$i]}" -ge "$start" ]] && ${phases[$i]} || info "Skipping primary phase P${nums[$i]}"
+        if [[ "${nums[$i]}" -ge "$start" ]]; then
+            ${phases[$i]}
+        else
+            info "Skipping primary phase P${nums[$i]}"
+        fi
     done
 
     echo -e "\n${CYAN}══════════════════════════════════════════${NC}"
