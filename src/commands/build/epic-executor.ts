@@ -36,7 +36,7 @@ export interface ExecutorOptions {
   hard?:           boolean;          // --hard mode: plan red-team + predict per issue
   budget?:         number;          // --max-budget-usd per claude call
   permissionMode?: 'auto' | 'skip'; // 'auto' → --permission-mode auto, 'skip' → --dangerously-skip-permissions
-  timeout?:        number;          // seconds per subprocess (default 600)
+  timeout?:        number;          // seconds per subprocess (default 1800)
   dryRun?:         boolean;
   fromIssue?:      number;          // skip child issues < this number
   fromEpic?:       number;          // skip epics < this number (for --all)
@@ -134,7 +134,7 @@ function spawnClaude(
       resolve({
         success:    !timedOut && code === 0,
         stdout,
-        stderr:     timedOut ? `Timed out after ${opts.timeout ?? 600}s` : stderr,
+        stderr:     timedOut ? `Timed out after ${opts.timeout ?? 1800}s` : stderr,
         durationMs: Date.now() - start,
       });
     };

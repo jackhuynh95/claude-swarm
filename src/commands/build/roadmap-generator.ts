@@ -62,7 +62,7 @@ function spawnClaudeStep(
 
     proc.stderr.on('data', (c: Buffer) => { stderr += c.toString(); });
 
-    const timeoutMs = (opts.timeout ?? 600) * 1_000;
+    const timeoutMs = (opts.timeout ?? 1800) * 1_000;
     const timer = setTimeout(() => {
       timedOut = true;
       proc.kill('SIGTERM');
@@ -74,7 +74,7 @@ function spawnClaudeStep(
       if (killTimer) clearTimeout(killTimer);
       resolve({
         success: !timedOut && code === 0,
-        stderr:  timedOut ? `Timed out after ${opts.timeout ?? 600}s` : stderr,
+        stderr:  timedOut ? `Timed out after ${opts.timeout ?? 1800}s` : stderr,
       });
     };
 

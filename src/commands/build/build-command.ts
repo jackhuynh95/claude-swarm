@@ -25,7 +25,7 @@ buildCommand
   .option('--epics <n>', 'Number of epics (default: auto)', parseInt)
   .option('--dry-run', 'Preview pipeline steps without executing', false)
   .option('--budget <n>', 'Max USD per claude call', parseFloat)
-  .option('--timeout <s>', 'Timeout per step in seconds (default: 600)', parseInt)
+  .option('--timeout <s>', 'Timeout per step in seconds (default: 1800)', parseInt)
   .action(async (input, opts) => {
     await generateRoadmap({
       input,
@@ -44,7 +44,7 @@ buildCommand
   .option('--epics <n>', 'Number of phases/epics (default: auto)', parseInt)
   .option('--dry-run', 'Preview without executing', false)
   .option('--budget <n>', 'Max USD per claude call', parseFloat)
-  .option('--timeout <s>', 'Timeout in seconds (default: 600)', parseInt)
+  .option('--timeout <s>', 'Timeout in seconds (default: 1800)', parseInt)
   .option('--model <model>', 'Override model (default: opus)')
   .option('--effort <level>', 'Effort level (default: high)')
   .action(async (input, opts) => {
@@ -103,7 +103,7 @@ buildCommand
   .option('--auto', 'Enable auto mode for all claude calls')
   .option('--budget <n>', 'Max USD per claude call', parseFloat)
   .option('--permission-mode <mode>', 'Permission mode: auto or skip')
-  .option('--timeout <s>', 'Timeout per step in seconds (default: 600)', parseInt)
+  .option('--timeout <s>', 'Timeout per step in seconds (default: 1800)', parseInt)
   .option('--dry-run', 'Show what would run without executing')
   .option('--model <model>', 'Override model for all steps (opus|sonnet|haiku)')
   .option('--effort <level>', 'Override effort for all steps (low|medium|high|max)')
