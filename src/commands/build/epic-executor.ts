@@ -380,6 +380,9 @@ export async function executeFromRoadmap(
   }
 
   let currentEpicIndex = -1;
+  let consecutiveFastFails = 0;
+  const FAST_FAIL_THRESHOLD = 30;   // seconds — failures faster than this suggest quota/rate limit
+  const MAX_CONSECUTIVE_FAST_FAILS = 3;
 
   for (const { epic, issue, epicIndex } of tasks) {
     // Print phase header when switching to a new phase
@@ -404,6 +407,7 @@ export async function executeFromRoadmap(
 
     if (result.success) {
       spinner.succeed(chalk.green(`    ✓ Task ${issue.id} (${dur}s)`));
+      consecutiveFastFails = 0;
 
       // Commit after each successful cook (same as bash scripts: /ck:git cm)
       const cmSpinner = ora(`    committing...`).start();
@@ -422,6 +426,18 @@ export async function executeFromRoadmap(
       spinner.fail(chalk.red(`    ✗ Task ${issue.id} (${dur}s)`));
       if (result.stderr) console.error(chalk.dim(`      ${result.stderr.slice(0, 200)}`));
       failed++;
+
+      // Detect fast failures (quota/rate limit) — abort if too many consecutive
+      if (result.durationMs / 1000 < FAST_FAIL_THRESHOLD) {
+        consecutiveFastFails++;
+        if (consecutiveFastFails >= MAX_CONSECUTIVE_FAST_FAILS) {
+          console.error(chalk.red(`\n  ✗ ${MAX_CONSECUTIVE_FAST_FAILS} consecutive fast failures (<${FAST_FAIL_THRESHOLD}s) — likely API quota exhausted`));
+          console.error(chalk.yellow(`    Resume later with: --from-task ${issue.id}`));
+          break;
+        }
+      } else {
+        consecutiveFastFails = 0;
+      }
     }
   }
 
