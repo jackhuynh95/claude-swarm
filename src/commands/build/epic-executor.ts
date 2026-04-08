@@ -201,7 +201,10 @@ async function shipIssue(issue: EpicChild, opts: ExecutorOptions, configModels?:
 
 // ─── Execute one epic ─────────────────────────────────────────────────────────
 
+/** @deprecated Use executeFromRoadmap() instead. Epic-based execution will be removed in v1.0. */
 export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}): Promise<void> {
+  console.log(chalk.yellow('⚠ DEPRECATED: --epic is deprecated. Use --roadmap instead.'));
+  console.log(chalk.dim('  Example: claude-swarm build run --roadmap @docs/implement-roadmap-*.md --phase 1'));
   console.log(chalk.blue(`\n▶ Epic #${epicNumber}`));
   const children = fetchEpicChildren(epicNumber);
   if (children.length === 0) { console.log(chalk.yellow('  No child issues found')); return; }
@@ -274,6 +277,7 @@ export async function executeEpic(epicNumber: number, opts: ExecutorOptions = {}
 
 // ─── Execute all epics ────────────────────────────────────────────────────────
 
+/** @deprecated Use executeFromRoadmap() instead. */
 export async function executeAllEpics(opts: ExecutorOptions = {}): Promise<void> {
   const epics = fetchAllEpics().filter(n => !opts.fromEpic || n >= opts.fromEpic);
   console.log(chalk.blue(`\n▶ Running ${epics.length} epic(s)`));
@@ -283,6 +287,7 @@ export async function executeAllEpics(opts: ExecutorOptions = {}): Promise<void>
 
 // ─── Single-step epic runners (for `build plan` / `build cook` subcommands) ───
 
+/** @deprecated Use executeFromRoadmap() instead. */
 export async function planEpicIssues(epicNumber: number, opts: ExecutorOptions = {}): Promise<void> {
   const children = fetchEpicChildren(epicNumber).filter(c => !isIssueClosed(c.number));
   console.log(chalk.blue(`\n▶ Planning ${children.length} issue(s) in epic #${epicNumber}`));
@@ -295,6 +300,7 @@ export async function planEpicIssues(epicNumber: number, opts: ExecutorOptions =
   }
 }
 
+/** @deprecated Use executeFromRoadmap() instead. */
 export async function cookEpicIssues(epicNumber: number, opts: ExecutorOptions = {}): Promise<void> {
   const children = fetchEpicChildren(epicNumber).filter(c => !isIssueClosed(c.number));
   console.log(chalk.blue(`\n▶ Cooking ${children.length} issue(s) in epic #${epicNumber}`));

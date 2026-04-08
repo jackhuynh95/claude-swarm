@@ -95,8 +95,8 @@ buildCommand
   .option('--roadmap <path>', 'Run from a roadmap markdown file (@path supported)')
   .option('--phase <n>', 'Run specific phase from roadmap (1-indexed)', parseInt)
   .option('--issue <n>', 'GitHub issue number to sync progress checklist to', parseInt)
-  .option('--epic <n>', 'Run specific GitHub epic by issue number', parseInt)
-  .option('--all', 'Run all phases (roadmap) or all epics (GitHub)')
+  .option('--epic <n>', '[DEPRECATED] Run specific GitHub epic by issue number', parseInt)
+  .option('--all', 'Run all phases (roadmap) or all epics (deprecated)')
   .option('--from <n>', 'Resume from phase/epic number N', parseInt)
   .option('--from-task <n>', 'Skip tasks with ID < N within a phase', parseInt)
   .option('--hard', 'Deep analysis: plan red-team + predict per task')
@@ -142,7 +142,7 @@ buildCommand
 
 buildCommand
   .command('plan')
-  .description('Run /ck:plan step for each open issue in an epic')
+  .description('[DEPRECATED] Run /ck:plan step for each open issue in an epic')
   .option('--epic <n>', 'Epic issue number', parseInt)
   .option('--budget <n>', 'Max USD per claude call', parseFloat)
   .option('--permission-mode <mode>', 'Permission mode: auto or skip')
@@ -166,7 +166,7 @@ buildCommand
 
 buildCommand
   .command('cook')
-  .description('Run /ck:cook step for each open issue in an epic')
+  .description('[DEPRECATED] Run /ck:cook step for each open issue in an epic')
   .option('--epic <n>', 'Epic issue number', parseInt)
   .option('--auto', 'Enable auto mode')
   .option('--budget <n>', 'Max USD per claude call', parseFloat)
