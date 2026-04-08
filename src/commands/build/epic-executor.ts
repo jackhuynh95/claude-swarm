@@ -121,7 +121,7 @@ function spawnClaude(
     proc.stdout.on('data', (c: Buffer) => { stdout += c.toString(); });
     proc.stderr.on('data', (c: Buffer) => { stderr += c.toString(); });
 
-    const timeoutMs = (opts.timeout ?? 600) * 1_000;
+    const timeoutMs = (opts.timeout ?? 1800) * 1_000;  // 30 min default for cook/plan tasks
     const timer = setTimeout(() => {
       timedOut = true;
       proc.kill('SIGTERM');
