@@ -424,14 +424,16 @@ export async function executeFromRoadmap(
       }
     } else {
       spinner.fail(chalk.red(`    ✗ Task ${issue.id} (${dur}s)`));
-      if (result.stderr) console.error(chalk.dim(`      ${result.stderr.slice(0, 200)}`));
+      const errMsg = (result.stderr || result.stdout || '').trim();
+      if (errMsg) console.error(chalk.dim(`      ${errMsg.slice(0, 500)}`));
       failed++;
 
       // Detect fast failures (quota/rate limit) — abort if too many consecutive
-      if (result.durationMs / 1000 < FAST_FAIL_THRESHOLD) {
+      const isFast = result.durationMs / 1000 < FAST_FAIL_THRESHOLD;
+      if (isFast) {
         consecutiveFastFails++;
         if (consecutiveFastFails >= MAX_CONSECUTIVE_FAST_FAILS) {
-          console.error(chalk.red(`\n  ✗ ${MAX_CONSECUTIVE_FAST_FAILS} consecutive fast failures (<${FAST_FAIL_THRESHOLD}s) — likely API quota exhausted`));
+          console.error(chalk.red(`\n  ✗ ${MAX_CONSECUTIVE_FAST_FAILS} consecutive fast failures (<${FAST_FAIL_THRESHOLD}s) — likely API quota/rate limit exhausted`));
           console.error(chalk.yellow(`    Resume later with: --from-task ${issue.id}`));
           break;
         }
