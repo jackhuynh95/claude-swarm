@@ -389,10 +389,20 @@ export async function executeFromRoadmap(
 
   let currentEpicIndex = -1;
   let consecutiveFastFails = 0;
+  let lastTaskId = 0;
   const FAST_FAIL_THRESHOLD = 30;   // seconds — failures faster than this suggest quota/rate limit
   const MAX_CONSECUTIVE_FAST_FAILS = 3;
 
   for (const { epic, issue, epicIndex } of tasks) {
+    // Guard: detect task ID going backwards (summary table leak or loop)
+    const taskNum = parseInt(issue.id, 10);
+    if (!isNaN(taskNum) && taskNum < lastTaskId) {
+      console.error(chalk.red(`\n  ✗ Task ID went backwards (${lastTaskId} → ${taskNum}) — stopping to prevent loop`));
+      console.error(chalk.yellow(`    This usually means a summary table leaked into the phase. Check the roadmap file.`));
+      break;
+    }
+    if (!isNaN(taskNum)) lastTaskId = taskNum;
+
     // Print phase header when switching to a new phase
     if (epicIndex !== currentEpicIndex) {
       currentEpicIndex = epicIndex;
