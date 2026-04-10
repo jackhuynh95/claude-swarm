@@ -315,19 +315,21 @@ export async function cookEpicIssues(epicNumber: number, opts: ExecutorOptions =
 
 // ─── Roadmap-based execution (reads from docs/roadmap.md, syncs to GitHub issue) ─
 
-/** Check a task in the [MILESTONE] issue body: replace `- [ ] {title}` → `- [x] {title}` */
+/** Check a task in the [MILESTONE] issue body: replace `- [ ] ...title...` → `- [x] ...title...` */
 function checkMilestoneTask(issueNumber: number, taskTitle: string): void {
   try {
     const raw = execSync(`gh issue view ${issueNumber} --json body`, { encoding: 'utf-8' });
     const { body } = JSON.parse(raw) as { body: string };
-    // Escape regex special chars in title for safe matching
-    const escaped = taskTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const updated = body.replace(new RegExp(`- \\[ \\] ${escaped}`), `- [x] ${taskTitle}`);
+
+    // Fuzzy match: find any unchecked line containing the task title (or first 40 chars)
+    const searchKey = taskTitle.slice(0, 40).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const updated = body.replace(
+      new RegExp(`(- \\[ \\] .*${searchKey}.*)`, 'm'),
+      (match) => match.replace('- [ ] ', '- [x] '),
+    );
     if (updated === body) return;
-    // Use spawnSync with args array to avoid shell interpretation of backticks in body
     spawnSync('gh', ['issue', 'edit', String(issueNumber), '--body', updated], { stdio: 'pipe' });
   } catch {
-    // Non-critical — log and continue
     console.error(chalk.dim(`  ⚠ Failed to update checklist for: ${taskTitle.slice(0, 50)}`));
   }
 }
