@@ -102,6 +102,10 @@ function isTaskTable(tableBlock: string): boolean {
     /^(#|no\.?|id|num)$/i.test(c)
   );
 
+  // Reject summary tables: first column is "phase", "step", "before", "component" etc.
+  const firstHeader = headerCells[0] ?? '';
+  if (/^(phase|step|before|after|component|layer|capability|what)$/i.test(firstHeader)) return false;
+
   // Strong signal: has both task-like and status-like headers with ID column
   if (hasIdHeader && hasTaskHeader && hasStatusHeader) return true;
 
