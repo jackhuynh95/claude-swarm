@@ -81,7 +81,7 @@ buildCommand
 
 buildCommand
   .command('init <roadmap>')
-  .description('Parse roadmap and create GitHub milestone, epic issues, and child issues')
+  .description('Create [MILESTONE] GitHub issue from roadmap for progress tracking')
   .option('--dry-run', 'Show parsed structure without creating issues')
   .action(async (roadmapPath, options) => {
     const filePath = roadmapPath.replace(/^@/, '');
