@@ -2,8 +2,6 @@ import { Command } from 'commander';
 import { generateRoadmap } from './roadmap-generator.js';
 import { generateDoc } from './generate-doc.js';
 import { fromScratch } from './from-scratch-pipeline.js';
-import { parseRoadmap } from './roadmap-parser.js';
-import { initFromRoadmap } from './github-hierarchy.js';
 import {
   executeEpic,
   executeAllEpics,
@@ -77,16 +75,6 @@ buildCommand
       budget: opts.budget,
       dryRun: opts.dryRun,
     });
-  });
-
-buildCommand
-  .command('init <roadmap>')
-  .description('Create [MILESTONE] GitHub issue from roadmap for progress tracking')
-  .option('--dry-run', 'Show parsed structure without creating issues')
-  .action(async (roadmapPath, options) => {
-    const filePath = roadmapPath.replace(/^@/, '');
-    const parsed = parseRoadmap(filePath);
-    await initFromRoadmap(parsed, options.dryRun);
   });
 
 buildCommand
