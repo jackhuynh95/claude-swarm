@@ -7,6 +7,7 @@ import { getPhaseConfig } from '../watch/phases/model-router.js';
 import { loadProjectConfig } from '../../config-resolver.js';
 import { parseRoadmap, type Epic, type Issue } from './roadmap-parser.js';
 import { extractLessonsFromCook } from '../sync/cook-lesson-extractor.js';
+import { loadVaultContext } from '../watch/phases/vault-context-loader.js';
 import type { ClaudeModel, EffortLevel, ModelOverrides, PhaseModelConfig, PhaseType } from '../watch/types.js';
 
 type Step = 'plan' | 'plan-red-team' | 'cook' | 'test' | 'predict' | 'ship';
@@ -423,10 +424,17 @@ export async function executeFromRoadmap(
 
     console.log(chalk.white(`\n  ► Task ${issue.id}: ${issue.title}`));
 
+    // Load vault context once per task — best-effort, never blocks pipeline
+    let vaultCtx = '';
+    try {
+      vaultCtx = await loadVaultContext(vaultPath, { title: issue.title });
+    } catch { /* swallow */ }
+    const vaultSection = vaultCtx ? `\n\n${vaultCtx}` : '';
+
     // Step 1: Plan (default) — skip with --fast
     if (!opts.fast) {
       const planMode = opts.hard ? '--hard' : '--fast';
-      const planPrompt = `/ck:plan ${planMode} Implement task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}`;
+      const planPrompt = `/ck:plan ${planMode} Implement task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}${vaultSection}`;
       const planSpinner = ora(`    planning...`).start();
       const planResult = await runStep('plan', planPrompt, opts, configModels);
       const planDur = (planResult.durationMs / 1000).toFixed(1);
@@ -439,7 +447,7 @@ export async function executeFromRoadmap(
     }
 
     // Step 2: Cook — execute the task (uses plan output if available)
-    const cookPrompt = `/ck:cook --auto Implement task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}`;
+    const cookPrompt = `/ck:cook --auto Implement task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}${vaultSection}`;
     const cookSpinner = ora(`    cooking...`).start();
     const result = await runStep('cook', cookPrompt, opts, configModels);
     const dur = (result.durationMs / 1000).toFixed(1);

@@ -57,7 +57,7 @@ export async function executeShipFlow(
 
   // 3. Vault context
   const vaultContext = config.vaultPath
-    ? await loadVaultContext(config.vaultPath, issue)
+    ? await loadVaultContext(config.vaultPath, { title: issue.title, description: issue.body ?? undefined })
     : '';
 
   // 4. Optional brainstorm — only for vague specs
