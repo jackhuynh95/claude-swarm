@@ -32,6 +32,7 @@ Create `.claude-swarm.json` in your project root for persistent defaults:
 {
   "repo": "myorg/myapp",
   "vault": "../second-brain",
+  "brain": "../second-brain",
   "baseUrl": "http://localhost:3000",
   "interval": 60000,
   "maxPerHour": 10,
@@ -90,6 +91,7 @@ claude-swarm watch --auto --effort low
 | `report` | Send Slack report for a GitHub issue |
 | `status` | Operator dashboard: tasks, history, cost, capabilities |
 | `build` | Generate roadmaps, create issues, and execute implementation pipelines |
+| `sync` | Smart vault sync — promote, inject, and check knowledge alignment |
 
 ---
 
@@ -591,6 +593,85 @@ claude-swarm status --task "run-42-1712345678"
 
 # Capability matrix
 claude-swarm status --matrix
+```
+
+---
+
+## sync
+
+Smart vault sync with three subcommands: promote notes from project vault to second-brain (`pull`), inject global knowledge into project (`push`), and verify alignment between vaults (`check`).
+
+```bash
+claude-swarm sync <subcommand> [options]
+```
+
+### Global Options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--project <name>` | Project name (default: cwd basename) | — |
+| `--vault <path>` | Project vault path | `./obsidian-vault` |
+| `--brain <path>` | Second-brain path | `../second-brain` |
+| `--dry-run` | Preview changes without writing | `false` |
+
+### pull
+
+Promote project vault notes to second-brain using Claude classification.
+
+```bash
+claude-swarm sync pull [options]
+```
+
+**Description:** Analyzes project vault for insights worthy of global knowledge base. Filters by relevance and prevents duplicates before promoting to second-brain.
+
+**Example**
+
+```bash
+# Preview promotions (dry run)
+claude-swarm sync pull --dry-run
+
+# Promote with custom paths
+claude-swarm sync pull --vault ./notes --brain ../second-brain
+```
+
+### push
+
+Inject second-brain knowledge into project vault with cycle detection.
+
+```bash
+claude-swarm sync push [options]
+```
+
+**Description:** Distributes relevant global knowledge to project vault. Detects and prevents circular dependencies between vaults.
+
+**Example**
+
+```bash
+# Preview injections (dry run)
+claude-swarm sync push --dry-run
+
+# Push with custom brain path
+claude-swarm sync push --brain ../second-brain
+```
+
+### check
+
+Check alignment and detect anomalies between project vault and second-brain.
+
+```bash
+claude-swarm sync check [options]
+```
+
+**Description:** Validates knowledge consistency, detects missing references, orphaned notes, and cross-vault anomalies.
+
+**Example**
+
+```bash
+# Run alignment check
+claude-swarm sync check
+
+# Check with custom paths
+claude-swarm sync check --vault ./notes --brain ../second-brain
 ```
 
 ---
