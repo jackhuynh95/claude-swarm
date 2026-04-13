@@ -6,6 +6,7 @@ import { createDefaultBudgetGuard } from './budget-guard.js';
 import { createHistory } from './conversation-history.js';
 import { shouldSkipComment } from './comment-guard.js';
 import { loadVaultContext } from './vault-context-loader.js';
+import { acquireCycleLock } from '../../sync/cycle-guard.js';
 
 export interface ShipFlowConfig {
   repo: string;
@@ -56,9 +57,16 @@ export async function executeShipFlow(
   }
 
   // 3. Vault context
-  const vaultContext = config.vaultPath
-    ? await loadVaultContext(config.vaultPath, { title: issue.title, description: issue.body ?? undefined })
-    : '';
+  let vaultContext = '';
+  if (config.vaultPath) {
+    const lockOk = await acquireCycleLock(config.vaultPath, 'push');
+    if (lockOk) {
+      vaultContext = await loadVaultContext(config.vaultPath, { title: issue.title, description: issue.body ?? undefined });
+      console.log(`[ship-flow] vault context loaded (${vaultContext.length} chars)`);
+    } else {
+      console.log('[ship-flow] cycle-guard denied vault context load — using stale');
+    }
+  }
 
   // 4. Optional brainstorm — only for vague specs
   if (isVagueSpec(issue)) {

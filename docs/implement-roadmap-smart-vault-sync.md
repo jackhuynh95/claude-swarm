@@ -413,10 +413,10 @@ Rule 3: Skip notes with source-project frontmatter
 
 | # | Task | Status |
 |---|---|---|
-| 40 | After journal-writer runs → trigger smart-pull ONCE | Pending |
-| 41 | Before /ck:plan runs → trigger smart-push ONCE with issue context | Pending |
-| 42 | Wire into post-ship-runner.ts (after journal, before next poll) | Pending |
-| 43 | Respect loop-prevention rules from Phase 6 | Pending |
+| 40 | After journal-writer runs → trigger smart-pull ONCE | Complete |
+| 41 | Before /ck:plan runs → trigger smart-push ONCE with issue context | Complete |
+| 42 | Wire into post-ship-runner.ts (after journal, before next poll) | Complete |
+| 43 | Respect loop-prevention rules from Phase 6 | Complete |
 
 **Watcher flow with smart sync**:
 ```

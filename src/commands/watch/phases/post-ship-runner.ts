@@ -5,6 +5,7 @@ import { executeSlackReport, type SlackReporterConfig } from './slack-reporter.j
 import { executeJournal, type JournalConfig } from './journal-writer.js';
 import { recordRun, type RunRecordConfig } from './run-recorder.js';
 import { extractKnowledge } from '../../sync/knowledge-extractor.js';
+import { acquireCycleLock } from '../../sync/cycle-guard.js';
 import { invokeClaudePhase } from './claude-invoker.js';
 import { executeSecurityFlow, type SecurityFlowConfig } from './security-flow.js';
 import { createPullRequest } from './branch-manager.js';
@@ -218,7 +219,13 @@ export async function executePostShip(
 
   // 12. Knowledge extraction — classify recent notes + failed phases, best-effort
   try {
-    await extractKnowledge(config.vaultPath, classified, flowResults, results, config.repo);
+    const lockOk = await acquireCycleLock(config.vaultPath, 'pull');
+    if (lockOk) {
+      await extractKnowledge(config.vaultPath, classified, flowResults, results, config.repo);
+      console.log('[post-ship] knowledge extraction complete');
+    } else {
+      console.log('[post-ship] cycle-guard denied knowledge extraction — already ran this cycle');
+    }
   } catch {
     // never block pipeline
   }

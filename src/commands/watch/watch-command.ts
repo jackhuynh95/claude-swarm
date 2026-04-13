@@ -10,6 +10,7 @@ import { executeClarifyPhase } from './phases/clarifier.js';
 import { transitionLabel, addComment } from './phases/label-manager.js';
 import { resolveRepo, loadProjectConfig } from '../../config-resolver.js';
 import { invokeClaudePhase } from './phases/claude-invoker.js';
+import { releaseCycleLock } from '../sync/cycle-guard.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -201,6 +202,12 @@ async function processIssue(
     console.error(`[watch] #${issue.number} error: ${msg}`);
     await transitionLabel(config.repo, issue.number, undefined, 'error');
     await addComment(config.repo, issue.number, `Watch daemon error: ${msg}`);
+  } finally {
+    // Release cycle lock so next issue can acquire it
+    if (options.vault) {
+      await releaseCycleLock(options.vault);
+      console.log('[watch] cycle-guard released');
+    }
   }
 }
 
