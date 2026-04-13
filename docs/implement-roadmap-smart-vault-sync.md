@@ -441,41 +441,31 @@ next poll cycle:
 | # | Task | Status |
 |---|---|---|
 | 44 | `build generate`: smart-push before brainstorm (inject context) | Pending |
-| 45 | `build run`: smart-push before each issue's /ck:plan | Pending |
-| 46 | `build run`: smart-pull after each issue completes | Pending |
-| 47 | `build run --roadmap`: add reminder/record step after successful `/ck:cook` in `executeFromRoadmap()` before commit | Pending |
-| 48 | `build run --roadmap`: write run summary / lesson candidate for roadmap tasks (roadmap loader has no post-ship journal today) | Pending |
-| 49 | `build from-scratch`: smart-push at start, smart-pull at end | Pending |
-| 50 | Respect same loop-prevention rules from Phase 6 | Pending |
+| 45 | `build run --roadmap`: smart-push before each task's /ck:plan | Pending |
+| 46 | `build run --roadmap`: smart-pull after each task completes (after /ck:git cm) | Pending |
+| 47 | `build run --roadmap`: add lesson capture step after successful `/ck:cook` in `executeFromRoadmap()` | Pending |
+| 48 | `build run --roadmap`: write run summary / lesson candidate per task (journal-style artifact) | Pending |
+| 49 | Respect same loop-prevention rules from P4 | Pending |
 
-**Builder flow with smart sync**:
+**Builder flow with smart sync (v0.9.5+ pipeline)**:
 ```
-build generate "Add analytics dashboard"
-  → SMART PUSH (inject chart-js, vue patterns from second-brain)
-  → /ck:brainstorm (now has foundation knowledge)
-  → generates roadmap with standards already applied
-
-build run --epic 1 --auto
-  → for each issue:
-    → SMART PUSH (inject relevant notes for THIS issue)
-    → /ck:plan (knows team conventions)
-    → /ck:cook (follows standards)
-    → builder reminder / record step
-    → /ck:test
-    → /ck:ship
-    → SMART PULL (promote new lessons)
-
-build run --roadmap @docs/implement-roadmap-x.md
+build run --roadmap @docs/implement-roadmap-x.md --phase 1 --auto
   → executeFromRoadmap()
-  → for each roadmap task:
+  → for each task:
     → SMART PUSH (inject relevant notes for THIS task)
-    → /ck:cook
-    → roadmap reminder / record step
-    → /ck:git cm
-    → SMART PULL
+    → /ck:plan (default) or skip with --fast
+    → /ck:cook --auto (implement from plan)
+    → lesson capture step (NEW — task 47)
+    → /ck:git cm (commit)
+    → SMART PULL (promote new lessons)
+    → checklist sync (--issue N, optional)
+  → /ck:git cp (push at end)
+
+build run --roadmap @plans/*/plan.md --auto
+  → same flow, plan.md = 1 phase, each phase-*.md = 1 task
 ```
 
-**Current roadmap-loader gap to fix**:
+**Current roadmap-loader state (v0.9.5)**:
 
 ```text
 watcher today
@@ -485,15 +475,17 @@ watcher today
   -> run-recorder
 
 roadmap loader today (`executeFromRoadmap()`)
-  execute
-  -> /ck:cook
-  -> /ck:git cm
-  -> optional checklist sync
+  -> /ck:plan (default, skip with --fast)
+  -> /ck:cook --auto
+  -> /ck:git cm (commit per task)
+  -> checklist sync (optional)
+  -> /ck:git cp (push at end)
 
-Missing in roadmap loader:
-  - no reminder to capture reusable lesson after cook
-  - no structured run record for roadmap tasks
-  - no journal-style memory artifact at the end
+Still missing (this phase):
+  - no smart-push before /ck:plan (inject context)
+  - no lesson capture after cook
+  - no smart-pull after task completes
+  - no journal-style run record for roadmap tasks
 ```
 
 ---
@@ -541,9 +533,9 @@ claude-swarm sync push --project medusa --force
 | P3 | Primary | Project context reuse | `vault-context-loader.ts` | 4 |
 | P4 | Primary | Primary metadata + safety | frontmatter rules in pull/push | 4 |
 | P5 | Primary | Watcher integration | `post-ship-runner.ts` | 4 |
-| P6 | Primary | Builder + roadmap-loader memory capture | `src/commands/build/epic-executor.ts` | 7 |
+| P6 | Primary | Builder + roadmap-loader memory capture | `src/commands/build/epic-executor.ts` | 6 |
 | S1 | Secondary | Promote proven project notes to global brain | `smart-pull.ts` | 8 |
 | S2 | Secondary | Optional global knowledge push into project | `smart-push.ts` | 8 |
 | S3 | Secondary | Global alignment check | `alignment-checker.ts` | 5 |
 | S4 | Secondary | Shared sync CLI | `sync-command.ts` | 8 |
-| **Total** | | **Primary first, Secondary later** | **5 new + 4 upgraded** | **58** |
+| **Total** | | **Primary first, Secondary later** | **5 new + 4 upgraded** | **57** |
