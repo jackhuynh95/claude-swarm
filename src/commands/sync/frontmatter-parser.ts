@@ -11,6 +11,7 @@ export interface ProvenanceFrontmatter {
   issue?: number; // GitHub issue number
   'task-id'?: string; // task identifier (e.g. "1.2")
   'synced-at'?: string; // ISO timestamp when written/classified
+  'promoted-date'?: string; // YYYY-MM-DD when promoted to global brain
   tags?: string[]; // searchable tags
   'classified-by'?: string; // model used (e.g. "haiku")
   'classification-reason'?: string;
@@ -46,6 +47,7 @@ export function parseFrontmatter(content: string): ProvenanceFrontmatter {
       case 'issue':                   { const n = Number(val); if (n) result.issue = n; break; }
       case 'task-id':                 result['task-id'] = val; break;
       case 'synced-at':               result['synced-at'] = val; break;
+      case 'promoted-date':           result['promoted-date'] = val; break;
       case 'classified-by':           result['classified-by'] = val; break;
       case 'classification-reason':   result['classification-reason'] = val.replace(/^"|"$/g, ''); break;
       case 'injected-from':           result['injected-from'] = val; break;
@@ -80,6 +82,7 @@ export function buildFrontmatter(meta: ProvenanceFrontmatter): string {
   if (meta.issue != null)           lines.push(`issue: ${meta.issue}`);
   if (meta['task-id'])              lines.push(`task-id: ${meta['task-id']}`);
   if (meta['synced-at'])            lines.push(`synced-at: ${meta['synced-at']}`);
+  if (meta['promoted-date'])        lines.push(`promoted-date: ${meta['promoted-date']}`);
   if (meta.tags?.length)            lines.push(`tags: [${meta.tags.join(', ')}]`);
   if (meta['classified-by'])        lines.push(`classified-by: ${meta['classified-by']}`);
   if (meta['classification-reason']) {
