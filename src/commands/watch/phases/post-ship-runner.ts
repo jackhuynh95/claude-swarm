@@ -4,6 +4,7 @@ import { executeTestFlow, type TestFlowConfig } from './test-flow.js';
 import { executeSlackReport, type SlackReporterConfig } from './slack-reporter.js';
 import { executeJournal, type JournalConfig } from './journal-writer.js';
 import { recordRun, type RunRecordConfig } from './run-recorder.js';
+import { extractKnowledge } from '../../sync/knowledge-extractor.js';
 import { invokeClaudePhase } from './claude-invoker.js';
 import { executeSecurityFlow, type SecurityFlowConfig } from './security-flow.js';
 import { createPullRequest } from './branch-manager.js';
@@ -214,6 +215,13 @@ export async function executePostShip(
   // 11. Run recorder — pure file write, best-effort
   const runConfig: RunRecordConfig = { vaultPath: config.vaultPath };
   await recordRun(classified, runConfig, flowResults, results, verdict);
+
+  // 12. Knowledge extraction — classify recent notes + failed phases, best-effort
+  try {
+    await extractKnowledge(config.vaultPath, classified, flowResults, results, config.repo);
+  } catch {
+    // never block pipeline
+  }
 
   return { results, verdict, pipelinePassed: verdict === 'PASS', shipPath };
 }
