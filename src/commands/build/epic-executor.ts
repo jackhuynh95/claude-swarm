@@ -1,10 +1,12 @@
 import { spawn, execSync, spawnSync } from 'node:child_process';
+import { join } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { createPullRequest } from '../watch/phases/branch-manager.js';
 import { getPhaseConfig } from '../watch/phases/model-router.js';
 import { loadProjectConfig } from '../../config-resolver.js';
 import { parseRoadmap, type Epic, type Issue } from './roadmap-parser.js';
+import { extractLessonsFromCook } from '../sync/cook-lesson-extractor.js';
 import type { ClaudeModel, EffortLevel, ModelOverrides, PhaseModelConfig, PhaseType } from '../watch/types.js';
 
 type Step = 'plan' | 'plan-red-team' | 'cook' | 'test' | 'predict' | 'ship';
@@ -43,6 +45,7 @@ export interface ExecutorOptions {
   fromEpic?:       number;          // skip epics < this number (for --all)
   model?:          string;          // CLI --model override (applies to all steps)
   effort?:         string;          // CLI --effort override (applies to all steps)
+  vaultPath?:      string;          // obsidian vault path for lesson capture (default: cwd/obsidian-vault)
 }
 
 interface StepResult {
@@ -388,6 +391,8 @@ export async function executeFromRoadmap(
     console.log(chalk.dim(`  Syncing progress to issue #${opts.trackingIssue}`));
   }
 
+  const vaultPath = opts.vaultPath ?? join(process.cwd(), 'obsidian-vault');
+
   let currentEpicIndex = -1;
   let consecutiveFastFails = 0;
   let lastTaskId = 0;
@@ -442,6 +447,18 @@ export async function executeFromRoadmap(
     if (result.success) {
       cookSpinner.succeed(chalk.green(`    ✓ Task ${issue.id} (${dur}s)`));
       consecutiveFastFails = 0;
+
+      // Step 2.5: Lesson capture — best-effort, never blocks pipeline
+      try {
+        await extractLessonsFromCook(
+          result.stdout,
+          issue.id,
+          issue.title,
+          epic.title,
+          roadmapPath,
+          vaultPath,
+        );
+      } catch { /* swallow */ }
 
       // Step 3: Commit (same as bash scripts: /ck:git cm)
       const cmSpinner = ora(`    committing...`).start();
