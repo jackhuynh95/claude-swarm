@@ -636,22 +636,31 @@ claude-swarm sync pull --vault ./notes --brain ../second-brain
 
 ### push
 
-Inject second-brain knowledge into project vault with cycle detection.
+Inject second-brain knowledge into project vault with relevance filtering and cycle detection.
 
 ```bash
-claude-swarm sync push [options]
+claude-swarm sync push --context <ctx> [options]
 ```
 
-**Description:** Distributes relevant global knowledge to project vault. Detects and prevents circular dependencies between vaults.
+**Options**
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `--context <ctx>` | Task/issue context for relevance scoring (use `@filepath` for file input) | Yes |
+
+**Description:** Distributes relevant global knowledge to project vault using Claude classification. Filters by relevance and prevents circular dependencies.
 
 **Example**
 
 ```bash
-# Preview injections (dry run)
-claude-swarm sync push --dry-run
+# Preview injections for a task (dry run)
+claude-swarm sync push --context "add OAuth2 to API" --dry-run
+
+# Push with context from file
+claude-swarm sync push --context @docs/feature-request.md
 
 # Push with custom brain path
-claude-swarm sync push --brain ../second-brain
+claude-swarm sync push --context "database migration" --brain ../second-brain
 ```
 
 ### check
@@ -662,13 +671,22 @@ Check alignment and detect anomalies between project vault and second-brain.
 claude-swarm sync check [options]
 ```
 
-**Description:** Validates knowledge consistency, detects missing references, orphaned notes, and cross-vault anomalies.
+**Options**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--auto-update` | Auto-copy newer version and backup old | `false` |
+
+**Description:** Validates knowledge consistency, detects missing references, orphaned notes, and cross-vault anomalies. Reports alignment status and drift count.
 
 **Example**
 
 ```bash
 # Run alignment check
 claude-swarm sync check
+
+# Check with auto-update
+claude-swarm sync check --auto-update
 
 # Check with custom paths
 claude-swarm sync check --vault ./notes --brain ../second-brain
