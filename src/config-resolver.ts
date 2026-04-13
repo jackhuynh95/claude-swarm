@@ -8,6 +8,7 @@ const CONFIG_FILE = '.claude-swarm.json';
 export interface ProjectConfig {
   repo?: string;
   vault?: string;
+  brain?: string;
   baseUrl?: string;
   interval?: number;
   maxPerHour?: number;
