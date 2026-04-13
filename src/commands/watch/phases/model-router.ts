@@ -3,7 +3,7 @@ import type { PhaseType, PhaseConfig, ModelOverrides, PhaseModelConfig } from '.
 // Phase → default config (from agent-token-budget-guide.md)
 const PHASE_CONFIGS: Record<PhaseType, PhaseConfig> = {
   brainstorm:   { model: 'opus',   effort: 'max',    maxTurns: 10, timeoutMs: 600_000, tools: ['Read', 'Grep', 'Glob'] },
-  plan:         { model: 'sonnet', effort: 'high',   maxTurns: 8,  timeoutMs: 480_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
+  plan:         { model: 'opus',   effort: 'high',   maxTurns: 8,  timeoutMs: 480_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
   plan_redteam: { model: 'opus',   effort: 'high',   maxTurns: 5,  timeoutMs: 300_000, tools: ['Read', 'Grep', 'Glob'] },
   debug:        { model: 'opus',   effort: 'high',   maxTurns: 5,  timeoutMs: 300_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
   clarify:      { model: 'opus',   effort: 'medium', maxTurns: 5,  timeoutMs: 300_000, tools: ['Read', 'Grep', 'Glob'] },

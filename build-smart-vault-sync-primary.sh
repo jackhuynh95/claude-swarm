@@ -106,7 +106,7 @@ run_plan() {
     run_claude "/ck:plan --fast $desc
 
 Reference roadmap:
-$roadmap" "sonnet" "$effort" "$BUDGET_PER_CALL"
+$roadmap" "opus" "$effort" "$BUDGET_PER_CALL"
 }
 
 run_cook() {
