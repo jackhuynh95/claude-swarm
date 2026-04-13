@@ -106,7 +106,7 @@ run_plan() {
     run_claude "/ck:plan --fast $desc
 
 Reference roadmap:
-$roadmap" "opus" "$effort" "$BUDGET_PER_CALL"
+$roadmap" "sonnet" "$effort" "$BUDGET_PER_CALL"
 }
 
 run_cook() {
@@ -184,10 +184,11 @@ p5() {
 
 p6() {
     header "P6: Builder / Roadmap Loader Integration"
-    run_plan "Wire primary inside-project memory into src/commands/build/epic-executor.ts, especially executeFromRoadmap(). After successful ck:cook, add reminder/record step, write run summary and lesson candidate, then continue to commit. Keep focus on project-inside memory only."
+    run_plan "Wire primary inside-project memory into src/commands/build/epic-executor.ts, especially executeFromRoadmap(). After successful ck:cook, add lesson capture step, write run summary and lesson candidate per task, then continue to ck:git cm. Add smart-push before ck:plan and smart-pull after task completes. Keep focus on project-inside memory only."
     confirm 6
     run_cook
     run_test
+    run_ship
     success "P6 complete — primary smart vault work done"
 }
 
