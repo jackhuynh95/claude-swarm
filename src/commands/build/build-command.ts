@@ -99,6 +99,7 @@ buildCommand
   .option('--all', 'Run all phases (roadmap) or all epics (deprecated)')
   .option('--from <n>', 'Resume from phase/epic number N', parseInt)
   .option('--from-task <n>', 'Skip tasks with ID < N within a phase', parseInt)
+  .option('--fast', 'Skip /ck:plan step, go straight to /ck:cook (default: plan first)')
   .option('--hard', 'Deep analysis: plan red-team + predict per task')
   .option('--auto', 'Enable auto mode for all claude calls')
   .option('--budget <n>', 'Max USD per claude call', parseFloat)
@@ -113,6 +114,7 @@ buildCommand
     const executorOpts = {
       auto:           opts.auto   ?? config.auto,
       hard:           opts.hard   ?? config.redTeam,
+      fast:           opts.fast,
       budget:         opts.budget,
       permissionMode: opts.permissionMode,
       timeout:        opts.timeout,

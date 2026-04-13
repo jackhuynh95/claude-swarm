@@ -33,6 +33,7 @@ function toModelId(model: ClaudeModel): string {
 
 export interface ExecutorOptions {
   auto?:           boolean;
+  fast?:           boolean;          // --fast: skip /ck:plan, go straight to /ck:cook
   hard?:           boolean;          // --hard mode: plan red-team + predict per issue
   budget?:         number;          // --max-budget-usd per claude call
   permissionMode?: 'auto' | 'skip'; // 'auto' → --permission-mode auto, 'skip' → --dangerously-skip-permissions
@@ -410,24 +411,39 @@ export async function executeFromRoadmap(
     }
 
     if (opts.dryRun) {
-      console.log(chalk.cyan(`  [DRY RUN] Task ${issue.id}: ${issue.title}`));
+      const mode = opts.fast ? 'cook' : 'plan → cook';
+      console.log(chalk.cyan(`  [DRY RUN] Task ${issue.id}: ${issue.title} (${mode})`));
       continue;
     }
 
     console.log(chalk.white(`\n  ► Task ${issue.id}: ${issue.title}`));
 
-    // Cook the task — include roadmap path for context
-    const cookPrompt = `/ck:cook --auto Implement task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}`;
+    // Step 1: Plan (default) — skip with --fast
+    if (!opts.fast) {
+      const planMode = opts.hard ? '--hard' : '--fast';
+      const planPrompt = `/ck:plan ${planMode} Implement task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}`;
+      const planSpinner = ora(`    planning...`).start();
+      const planResult = await runStep('plan', planPrompt, opts, configModels);
+      const planDur = (planResult.durationMs / 1000).toFixed(1);
 
-    const spinner = ora(`    cooking...`).start();
+      if (planResult.success) {
+        planSpinner.succeed(chalk.green(`    planned (${planDur}s)`));
+      } else {
+        planSpinner.warn(chalk.yellow(`    plan skipped (${planDur}s)`));
+      }
+    }
+
+    // Step 2: Cook — execute the task (uses plan output if available)
+    const cookPrompt = `/ck:cook --auto Implement task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}`;
+    const cookSpinner = ora(`    cooking...`).start();
     const result = await runStep('cook', cookPrompt, opts, configModels);
     const dur = (result.durationMs / 1000).toFixed(1);
 
     if (result.success) {
-      spinner.succeed(chalk.green(`    ✓ Task ${issue.id} (${dur}s)`));
+      cookSpinner.succeed(chalk.green(`    ✓ Task ${issue.id} (${dur}s)`));
       consecutiveFastFails = 0;
 
-      // Commit after each successful cook (same as bash scripts: /ck:git cm)
+      // Step 3: Commit (same as bash scripts: /ck:git cm)
       const cmSpinner = ora(`    committing...`).start();
       const cmResult = await runStep('ship', `/ck:git cm Stage and commit all changes for task: ${issue.title}`, opts, configModels);
       cmResult.success
@@ -441,7 +457,7 @@ export async function executeFromRoadmap(
         checkMilestoneTask(opts.trackingIssue, issue.title);
       }
     } else {
-      spinner.fail(chalk.red(`    ✗ Task ${issue.id} (${dur}s)`));
+      cookSpinner.fail(chalk.red(`    ✗ Task ${issue.id} (${dur}s)`));
       const errMsg = (result.stderr || result.stdout || '').trim();
       if (errMsg) console.error(chalk.dim(`      ${errMsg.slice(0, 500)}`));
       failed++;
