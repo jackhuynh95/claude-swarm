@@ -306,14 +306,14 @@ smart-pull:
 
 | # | Task | Status |
 |---|---|---|
-| 15 | Create `src/commands/sync/smart-push.ts` | Pending |
-| 16 | Accept context: issue title, feature description, or task spec | Pending |
-| 17 | Read all second-brain notes (_lessons/, _patterns/, _decisions/) | Pending |
-| 18 | Classify relevance to the given context via Claude (sonnet) | Pending |
-| 19 | Copy relevant notes to project vault Notes/ | Pending |
-| 20 | Skip notes already in project vault | Pending |
-| 21 | Add frontmatter: `injected-from: second-brain`, `injected-for: "issue #42"` | Pending |
-| 22 | Dry-run mode | Pending |
+| 15 | Create `src/commands/sync/smart-push.ts` | Complete |
+| 16 | Accept context: issue title, feature description, or task spec | Complete |
+| 17 | Read all second-brain notes (_lessons/, _patterns/, _decisions/) | Complete |
+| 18 | Classify relevance to the given context via Claude (sonnet) | Complete |
+| 19 | Copy relevant notes to project vault Notes/ | Complete |
+| 20 | Skip notes already in project vault | Complete |
+| 21 | Add frontmatter: `injected-from: second-brain`, `injected-for: "issue #42"` | Complete |
+| 22 | Dry-run mode | Complete |
 
 **Flow**:
 ```
@@ -526,16 +526,16 @@ claude-swarm sync push --project medusa --force
 
 ## Summary
 
-| Phase | Track | What | Files | Tasks |
-|---|---|---|---|---|
-| P1 | Primary | Project note classifier | `note-classifier.ts` | 6 |
-| P2 | Primary | Project knowledge capture | `journal-writer.ts`, `run-recorder.ts`, builder hook points | 4 |
-| P3 | Primary | Project context reuse | `vault-context-loader.ts` | 4 |
-| P4 | Primary | Primary metadata + safety | frontmatter rules in pull/push | 4 |
-| P5 | Primary | Watcher integration | `post-ship-runner.ts` | 4 |
-| P6 | Primary | Builder + roadmap-loader memory capture | `src/commands/build/epic-executor.ts` | 6 |
-| S1 | Secondary | Promote proven project notes to global brain | `smart-pull.ts` | 8 |
-| S2 | Secondary | Optional global knowledge push into project | `smart-push.ts` | 8 |
-| S3 | Secondary | Global alignment check | `alignment-checker.ts` | 5 |
-| S4 | Secondary | Shared sync CLI | `sync-command.ts` | 8 |
-| **Total** | | **Primary first, Secondary later** | **5 new + 4 upgraded** | **57** |
+| Phase | Track | What | Files | Tasks | Status |
+|---|---|---|---|---|---|
+| P1 | Primary | Project note classifier | `note-classifier.ts` | 6 | Complete |
+| P2 | Primary | Project knowledge capture | `journal-writer.ts`, `run-recorder.ts`, builder hook points | 4 | Pending |
+| P3 | Primary | Project context reuse | `vault-context-loader.ts` | 4 | Pending |
+| P4 | Primary | Primary metadata + safety | frontmatter rules in pull/push | 4 | Pending |
+| P5 | Primary | Watcher integration | `post-ship-runner.ts` | 4 | Complete |
+| P6 | Primary | Builder + roadmap-loader memory capture | `src/commands/build/epic-executor.ts` | 6 | Pending |
+| S1 | Secondary | Promote proven project notes to global brain | `smart-pull.ts` | 8 | Complete |
+| S2 | Secondary | Optional global knowledge push into project | `smart-push.ts` | 8 | Complete |
+| S3 | Secondary | Global alignment check | `alignment-checker.ts` | 5 | Pending |
+| S4 | Secondary | Shared sync CLI | `sync-command.ts` | 8 | Pending |
+| **Total** | | **Primary first, Secondary later** | **5 new + 4 upgraded** | **57** | **3 Complete, 7 Pending** |

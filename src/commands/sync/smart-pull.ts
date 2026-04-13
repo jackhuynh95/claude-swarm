@@ -4,7 +4,7 @@
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { classifyNotes, type NoteInput } from './note-classifier.js';
-import { parseFrontmatter, buildFrontmatter, hasFrontmatter, isInjectedNote } from './frontmatter-parser.js';
+import { parseFrontmatter, buildFrontmatter, hasFrontmatter, isInjectedNote, mergeFrontmatter } from './frontmatter-parser.js';
 import { acquireCycleLock, releaseCycleLock } from './cycle-guard.js';
 
 export interface SmartPullOptions {
@@ -52,14 +52,6 @@ async function getBrainFilenames(brainPath: string): Promise<Set<string>> {
 }
 
 function stripDatePrefix(f: string): string { return f.replace(/^\d{4}-\d{2}-\d{2}-/, ''); }
-
-/** Inject provenance fields before the closing --- of an existing frontmatter block. */
-function mergeFrontmatter(content: string, fields: Record<string, string>): string {
-  const closeIdx = content.indexOf('\n---', 4);
-  if (closeIdx === -1) return content;
-  const additions = Object.entries(fields).map(([k, v]) => `${k}: ${v}`).join('\n');
-  return `${content.slice(0, closeIdx)}\n${additions}${content.slice(closeIdx)}`;
-}
 
 function filterAlreadyInBrain(notes: NoteInput[], brain: Set<string>): { keep: NoteInput[]; skipped: SmartPullDetail[] } {
   const keep: NoteInput[] = [], skipped: SmartPullDetail[] = [];

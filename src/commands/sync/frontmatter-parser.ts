@@ -71,6 +71,14 @@ export function isSyncedNote(content: string): boolean {
   return !!parseFrontmatter(content)['synced-at'];
 }
 
+/** Inject additional fields before the closing --- of an existing frontmatter block. */
+export function mergeFrontmatter(content: string, fields: Record<string, string>): string {
+  const closeIdx = content.indexOf('\n---', 4);
+  if (closeIdx === -1) return content;
+  const additions = Object.entries(fields).map(([k, v]) => `${k}: ${v}`).join('\n');
+  return `${content.slice(0, closeIdx)}\n${additions}${content.slice(closeIdx)}`;
+}
+
 /** Build a YAML frontmatter block string from provenance metadata. */
 export function buildFrontmatter(meta: ProvenanceFrontmatter): string {
   const lines: string[] = ['---'];
