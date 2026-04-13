@@ -8,6 +8,8 @@ import { loadProjectConfig } from '../../config-resolver.js';
 import { parseRoadmap, type Epic, type Issue } from './roadmap-parser.js';
 import { extractLessonsFromCook } from '../sync/cook-lesson-extractor.js';
 import { loadVaultContext } from '../watch/phases/vault-context-loader.js';
+import { acquireCycleLock, releaseCycleLock } from '../sync/cycle-guard.js';
+import { extractFromRecentNotes } from '../sync/knowledge-extractor.js';
 import type { ClaudeModel, EffortLevel, ModelOverrides, PhaseModelConfig, PhaseType } from '../watch/types.js';
 
 type Step = 'plan' | 'plan-red-team' | 'cook' | 'test' | 'predict' | 'ship';
@@ -427,7 +429,10 @@ export async function executeFromRoadmap(
     // Load vault context once per task — best-effort, never blocks pipeline
     let vaultCtx = '';
     try {
-      vaultCtx = await loadVaultContext(vaultPath, { title: issue.title });
+      const pushAllowed = await acquireCycleLock(vaultPath, 'push');
+      if (pushAllowed) {
+        vaultCtx = await loadVaultContext(vaultPath, { title: issue.title });
+      }
     } catch { /* swallow */ }
     const vaultSection = vaultCtx ? `\n\n${vaultCtx}` : '';
 
@@ -475,6 +480,21 @@ export async function executeFromRoadmap(
         ? cmSpinner.succeed(chalk.green(`    committed`))
         : cmSpinner.warn(chalk.yellow(`    commit skipped (no changes or failed)`));
 
+      // Step 3.5: Knowledge extraction from recent Notes/ — best-effort, never blocks pipeline
+      try {
+        const pullAllowed = await acquireCycleLock(vaultPath, 'pull');
+        if (pullAllowed) {
+          const parts = roadmapPath.replace(/\\/g, '/').split('/');
+          const project = parts.length > 1 ? (parts[parts.length - 2] ?? 'unknown') : 'unknown';
+          await extractFromRecentNotes(vaultPath, {
+            project,
+            sourcePhase: 'cook',
+            date: new Date().toISOString().slice(0, 10),
+            taskId: issue.id,
+          });
+        }
+      } catch { /* swallow — best-effort */ }
+
       completed++;
 
       // Sync to GitHub issue
@@ -500,6 +520,9 @@ export async function executeFromRoadmap(
         consecutiveFastFails = 0;
       }
     }
+
+    // Release cycle lock — one cycle per task (success or failure)
+    await releaseCycleLock(vaultPath).catch(() => {});
   }
 
   // Summary
