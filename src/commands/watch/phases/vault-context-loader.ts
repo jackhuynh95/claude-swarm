@@ -1,5 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parseFrontmatter } from '../../sync/frontmatter-parser.js';
 
 const MAX_CONTEXT_CHARS = 3000;
 
@@ -44,26 +45,6 @@ const RECENCY_TIERS = [
 
 const TAG_MATCH_BONUS = 2;
 
-// ─── Frontmatter parser ───────────────────────────────────────────────────────
-
-/** Extract `tags` and `category` from YAML frontmatter. Never throws. */
-function parseFrontmatter(content: string): { tags: string[]; category: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) return { tags: [], category: '' };
-  let tags: string[] = [];
-  let category = '';
-  for (const line of match[1].split('\n')) {
-    if (line.startsWith('tags:')) {
-      // Support: tags: [a, b] or tags: a, b
-      const raw = line.slice(5).trim().replace(/^\[|\]$/g, '');
-      tags = raw.split(',').map(t => t.trim()).filter(Boolean);
-    } else if (line.startsWith('category:')) {
-      category = line.slice(9).trim();
-    }
-  }
-  return { tags, category };
-}
-
 // ─── Note readers ─────────────────────────────────────────────────────────────
 
 /** Read Knowledge/Lessons, Patterns, Decisions — parse frontmatter tags. */
@@ -82,7 +63,8 @@ async function readKnowledgeNotes(vaultPath: string): Promise<VaultNote[]> {
       const filePath = join(fullDir, entry);
       try {
         const [content, fileStat] = await Promise.all([readFile(filePath, 'utf8'), stat(filePath)]);
-        const { tags } = parseFrontmatter(content);
+        const fm = parseFrontmatter(content);
+        const tags = fm.tags ?? [];
         notes.push({ name: entry.replace(/\.md$/, ''), content, modifiedAt: fileStat.mtime, relevanceScore: 0, source, tags });
       } catch { /* skip unreadable */ }
     }

@@ -2,9 +2,26 @@ import { readdir, stat, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { captureKnowledge } from './knowledge-writer.js';
 import type { KnowledgeMetadata } from './knowledge-writer.js';
+import { isInjectedNote } from './frontmatter-parser.js';
 import type { ClassifiedIssue, PhaseResult } from '../watch/types.js';
 
 const RECENT_MTIME_MS = 5 * 60 * 1000; // 5 minutes
+
+/** Knowledge/ subdirs to scan when checking for already-promoted slugs. */
+const KNOWLEDGE_SUBDIRS = ['Knowledge/Lessons', 'Knowledge/Patterns', 'Knowledge/Decisions'];
+
+/**
+ * Check if a note slug is already present in Knowledge/ subdirs.
+ * Matches any file ending with `-{slug}.md` (date-prefix tolerant).
+ */
+async function isAlreadyPromoted(vaultPath: string, slug: string): Promise<boolean> {
+  for (const subdir of KNOWLEDGE_SUBDIRS) {
+    const dir = join(vaultPath, subdir);
+    const files = await readdir(dir).catch(() => [] as string[]);
+    if (files.some(f => f.endsWith(`-${slug}.md`) || f === `${slug}.md`)) return true;
+  }
+  return false;
+}
 
 /**
  * Scan Notes/ for files modified in the last 5 minutes and promote them to Knowledge/.
@@ -28,7 +45,21 @@ export async function extractFromRecentNotes(
       const content = await readFile(filePath, 'utf8').catch(() => null);
       if (!content) continue;
 
+      // Skip notes injected from second-brain (must never be re-promoted)
+      if (isInjectedNote(content)) {
+        console.log(`[knowledge-extractor] skip injected: ${file}`);
+        continue;
+      }
+
       const title = file.replace(/\.md$/, '');
+      const slug = title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 60).replace(/-$/, '');
+
+      // Skip notes already promoted to Knowledge/ (prevent duplicate classification)
+      if (await isAlreadyPromoted(vaultPath, slug)) {
+        console.log(`[knowledge-extractor] skip already-promoted: ${slug}`);
+        continue;
+      }
+
       await captureKnowledge(vaultPath, { title, content }, metadata);
     }
   } catch {

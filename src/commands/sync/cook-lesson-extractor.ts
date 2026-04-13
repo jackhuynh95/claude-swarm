@@ -3,6 +3,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { captureKnowledge } from './knowledge-writer.js';
 import type { KnowledgeMetadata } from './knowledge-writer.js';
+import { buildFrontmatter } from './frontmatter-parser.js';
 
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_COOK_CHARS = 3000; // truncate long cook output
@@ -88,25 +89,25 @@ async function writeTaskRunSummary(
   taskTitle: string,
   epicTitle: string,
   date: string,
+  project: string,
+  issue?: number,
 ): Promise<void> {
   try {
     const runsDir = join(vaultPath, RUNS_DIR);
     await mkdir(runsDir, { recursive: true });
     const filePath = join(runsDir, `${date}-task-${taskId}.md`);
-    const content = `---
-date: ${date}
-task: ${taskId}
-epic: ${epicTitle}
-tags: [task-run, cook]
----
-
-# Task Run: ${taskTitle}
-
-**Epic**: ${epicTitle}
-**Date**: ${date}
-**Status**: completed via /ck:cook
-`;
-    await writeFile(filePath, content, 'utf8');
+    const frontmatter = buildFrontmatter({
+      date,
+      'source-phase': 'cook',
+      'source-project': project,
+      project,
+      issue,
+      'task-id': taskId,
+      'synced-at': new Date().toISOString(),
+      tags: ['task-run', 'cook'],
+    });
+    const body = `# Task Run: ${taskTitle}\n\n**Epic**: ${epicTitle}\n**Date**: ${date}\n**Status**: completed via /ck:cook\n`;
+    await writeFile(filePath, frontmatter + body, 'utf8');
   } catch {
     // best-effort
   }
@@ -134,10 +135,11 @@ export async function extractLessonsFromCook(
     project,
     sourcePhase: 'cook',
     date,
+    taskId,
   };
 
   // Write task run summary — fire-and-forget
-  writeTaskRunSummary(vaultPath, taskId, taskTitle, epicTitle, date).catch(() => {});
+  writeTaskRunSummary(vaultPath, taskId, taskTitle, epicTitle, date, project).catch(() => {});
 
   // Extract and capture lessons via haiku
   try {

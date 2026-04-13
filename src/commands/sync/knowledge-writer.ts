@@ -2,6 +2,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { classifyNote } from './note-classifier.js';
 import type { NoteInput } from './note-classifier.js';
+import { buildFrontmatter } from './frontmatter-parser.js';
 
 // --- Types ---
 
@@ -15,6 +16,7 @@ export interface KnowledgeMetadata {
   project: string;
   sourcePhase: 'journal' | 'run-record' | 'cook' | 'plan';
   date: string; // YYYY-MM-DD
+  taskId?: string; // optional task identifier (e.g. "1.2")
 }
 
 export interface CaptureResult {
@@ -44,29 +46,6 @@ function toKebabCase(title: string): string {
     .replace(/-+/g, '-')
     .slice(0, 60)
     .replace(/-$/, '');
-}
-
-function buildFrontmatter(
-  meta: KnowledgeMetadata,
-  category: string,
-  reason: string,
-): string {
-  const lines: string[] = [
-    '---',
-    `date: ${meta.date}`,
-    `category: ${category}`,
-    `source-phase: ${meta.sourcePhase}`,
-  ];
-  if (meta.issue != null) lines.push(`issue: ${meta.issue}`);
-  lines.push(
-    `project: ${meta.project}`,
-    `tags: [knowledge, ${category}]`,
-    `classified-by: haiku`,
-    `classification-reason: "${reason.replace(/"/g, "'")}"`,
-    '---',
-    '',
-  );
-  return lines.join('\n');
 }
 
 // --- Public API ---
@@ -103,7 +82,19 @@ export async function captureKnowledge(
     const filename = `${metadata.date}-${slug}.md`;
     const filePath = join(targetDir, filename);
 
-    const frontmatter = buildFrontmatter(metadata, classification.category, classification.reason);
+    const frontmatter = buildFrontmatter({
+      date: metadata.date,
+      category: classification.category,
+      'source-phase': metadata.sourcePhase,
+      'source-project': metadata.project,
+      project: metadata.project,
+      issue: metadata.issue,
+      'task-id': metadata.taskId,
+      'synced-at': new Date().toISOString(),
+      tags: ['knowledge', classification.category],
+      'classified-by': 'haiku',
+      'classification-reason': classification.reason,
+    });
     await writeFile(filePath, frontmatter + note.content, 'utf8');
 
     console.log(`[knowledge-writer] captured: Knowledge/${dir}/${filename}`);
