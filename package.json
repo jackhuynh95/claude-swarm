@@ -1,6 +1,6 @@
 {
   "name": "@jackhuynh95/claude-swarm",
-  "version": "0.9.6",
+  "version": "1.0.0",
   "description": "AI-powered GitHub issue automation daemon built on CK watch",
   "type": "module",
   "bin": {
