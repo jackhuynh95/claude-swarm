@@ -224,12 +224,12 @@ Primary success means:
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Create `src/commands/sync/note-classifier.ts` | Pending |
-| 2 | Spawn Claude (haiku, low effort) to classify each note | Pending |
-| 3 | Classification output: `{ action: "promote" \| "skip", reason, category }` | Pending |
-| 4 | Categories: lesson, pattern, decision, foundation, project-specific | Pending |
-| 5 | Use `--json-schema` for structured classification output | Pending |
-| 6 | Batch mode: classify multiple notes in one call (save tokens) | Pending |
+| 1 | Create `src/commands/sync/note-classifier.ts` | Complete |
+| 2 | Spawn Claude (haiku, low effort) to classify each note | Complete |
+| 3 | Classification output: `{ action: "promote" \| "skip", reason, category }` | Complete |
+| 4 | Categories: lesson, pattern, decision, foundation, project-specific | Complete |
+| 5 | Use `--json-schema` for structured classification output | Complete |
+| 6 | Batch mode: classify multiple notes in one call (save tokens) | Complete |
 
 **Classification prompt**:
 ```
