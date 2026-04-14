@@ -82,6 +82,7 @@ Confirmed decisions for v1:
 - watcher future behavior should block until human answers exist, not auto-generate provisional spec silently
 - debrief should leave a durable trace, or at minimum clear clues and footprint in run history
 - question about keeping `brainstorm` before `grill-me` is dropped for v1 because `grill-me` is separated cleanly
+- watcher without `--vault` may run best-effort debrief, but official completion requires vault-backed trace in `obsidian-vault/`
 - watcher poll-safe marker is deferred to later
 
 ### What `grill-me` is
@@ -466,7 +467,7 @@ claude-swarm debrief --roadmap @docs/implement-roadmap-x.md --phase 2
 | 34 | Define when `grill-me` is required vs skippable | Pending |
 | 35 | Define when debrief is required vs best-effort | Pending |
 | 36 | Prevent “done” status if non-trivial work lacks spec trace or debrief trace | Pending |
-| 37 | Decide how this policy works in watcher runs without `--vault` | Pending |
+| 37 | Define watcher rule: without `--vault` allow best-effort debrief only; require vault-backed trace for official completion | Pending |
 | 38 | Keep lightweight escape hatch for tiny fixes | Pending |
 
 **Recommended policy**:
@@ -564,8 +565,8 @@ Recommended order:
 4. Existing generated guides and already-started topics should not be broken by this rollout.
 5. For new topics, `plans/` is the execution truth and `obsidian-vault/` is the memory/reuse layer.
 6. If `grill-me` already resolved the design, prefer `ck:plan --fast` on Sonnet to save tokens.
+7. For watcher runs without `--vault`, allow best-effort debrief, but require vault-backed trace for official completion.
 
 ## Unresolved Questions
 
-1. For watcher runs without `--vault`, do we allow “best-effort only” debrief, or do we make vault-backed traces mandatory for official completion?
-2. What is the right poll-safe marker for future watcher rollout: issue label, bot marker comment, plan artifact path, or run-state file?
+1. What is the right poll-safe marker for future watcher rollout: issue label, bot marker comment, plan artifact path, or run-state file?
