@@ -7,6 +7,27 @@
 **Temporary scope**: `grill-me` replaces `ck:brainstorm` in builder/manual planning flows first. Watcher keeps its current clarify loop until poll-safe state exists for already-grilled issues.
 **Compatibility rule**: do not break existing generated guides or already-started topic workflows. Apply the new `grill-me` path to new topics going forward.
 
+## New-Topic Builder Workflow (v1 Active Path)
+
+This is the active builder workflow for new topics as of 2026-04-14:
+
+```text
+1. claude-swarm grill-me "<topic>"     # Opus — clarify, surface decisions
+   └── writes plans/<dir>/spec.md
+
+2. /ck:plan --fast @spec.md            # Sonnet — phase files from resolved design
+
+3. /ck:cook --auto                     # Sonnet — implement
+
+4. test / review / commit
+
+5. claude-swarm debrief                # Compare spec vs plan vs built
+   └── writes plans/<dir>/debrief.md
+```
+
+**Watcher flow**: unchanged for now. Watcher integration deferred until poll-safe state exists.
+**Existing guides**: not rewritten automatically. New topics only.
+
 ---
 
 ## Problem
@@ -439,8 +460,8 @@ Note: current watcher post-ship order is `test-flow -> security? -> scout -> pre
 | 28 | Add `claude-swarm grill-me <topic>` as the public command and route it internally to the repo-local `grill-me` skill | Pending |
 | 29 | Add debrief command or post-run helper for manual use | Pending |
 | 30 | Update `src/index.ts` if a new CLI command is added | Pending |
-| 31 | Update `docs/cli-usage-guide.md` with new commands and examples | Pending |
-| 32 | Update `README.md` workflow diagram to show specifications/building/evaluation | Pending |
+| 31 | Update `docs/cli-usage-guide.md` with new commands and examples | Complete |
+| 32 | Update `README.md` workflow diagram to show specifications/building/evaluation | Complete |
 | 33 | Preserve current command behavior for existing builder guides; do not rewrite old generated instructions automatically | Pending |
 
 **CLI examples**:
@@ -573,7 +594,7 @@ Recommended order:
 | G3 | Wire `grill-me` before plan | builder/manual roadmap generation entrypoints | 8 | Pending |
 | G4 | Add debrief skill/step | `.claude/skills/debrief/SKILL.md` | 5 | Pending |
 | G5 | Wire debrief after build | `epic-executor.ts`, `post-ship-runner.ts`, trace writers | 6 | Pending |
-| G6 | CLI + docs surface | `src/index.ts`, `docs/cli-usage-guide.md`, `README.md` | 6 | Pending |
+| G6 | CLI + docs surface | `src/index.ts`, `docs/cli-usage-guide.md`, `README.md` | 6 | **Partial** (docs done, CLI pending) |
 | G7 | Completion policy enforcement | workflow guards + prompts | 5 | Pending |
 | **Total** | **Specification-first + debrief workflow** | **8+ files now, watcher expansion later** | **41** | **0 Complete, 7 Pending** |
 

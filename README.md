@@ -24,6 +24,24 @@ GitHub Issues
         └── Journal    → Obsidian vault daily + lessons
 ```
 
+## New-Topic Builder Workflow (Spec-First)
+
+For new features, roadmaps, and architectural changes — use the spec-first builder path:
+
+```
+New Topic or Request
+  │
+  ├── grill-me        → Spec Interview: sharp questions, decisions, acceptance criteria
+  ├── spec.md         → Durable spec artifact (plans/<dir>/spec.md)
+  ├── /ck:plan --fast → Phase files (Sonnet executor mode)
+  ├── /ck:cook        → Implementation
+  ├── test / review   → Verify
+  └── debrief         → Debrief artifact: matched, changed, deferred, follow-ups
+```
+
+**Compatibility**: Existing generated guides and in-progress topic workflows are not affected.
+New topics use the `grill-me` entrypoint. Old topics continue as-is.
+
 ## Architecture
 
 ```
@@ -47,7 +65,7 @@ GitHub Issues
 │  Post-Ship: verifier · e2e · slack · journal   │
 ├────────────────────────────────────────────────┤
 │  Standalone CLI Tools                          │
-│  slack-reader · brainstormer · status          │
+│  grill-me · debrief · slack-reader · status    │
 └────────────────────────────────────────────────┘
 ```
 
@@ -76,6 +94,8 @@ GitHub Issues
 | **Smart label routing** | "hard" → opus, "frontend" → design review |
 | **Budget guards** | Per-worker token caps, nightly cost summary |
 | **Safety filters** | Secrets stripping, AI disclaimer, loop prevention |
+| **Spec-first workflow** | `grill-me` clarification stage before planning — forces decisions, prevents dark code |
+| **Debrief traces** | Post-build comparison: spec vs plan vs built result, records deferrals and follow-ups |
 
 ## Quick Start
 
@@ -119,11 +139,14 @@ See [docs/implement-roadmap.md](docs/implement-roadmap.md) for full details.
 | [implement-roadmap.md](docs/implement-roadmap.md) | Full roadmap — 9 phases, 56 tasks, capability matrix |
 | [execution-playbook.md](docs/execution-playbook.md) | Step-by-step commands per phase |
 | [agent-token-budget-guide.md](docs/agent-token-budget-guide.md) | Model routing, tool gating, budget controls |
+| [implement-roadmap-grill-me-debrief.md](docs/implement-roadmap-grill-me-debrief.md) | Grill-Me + Debrief roadmap — specification-first workflow design |
 
 ## Model Routing
 
 | Role | Model | Effort | Why |
 |---|---|---|---|
+| Grill-Me | opus | max | Challenge assumptions, surface hidden decisions |
+| Debrief | sonnet | medium | Compare artifacts, extract follow-ups |
 | Brainstorm | opus | max | Deep creative thinking |
 | Plan | opus | high | Architectural reasoning |
 | Debug | opus | high | Root cause analysis |
