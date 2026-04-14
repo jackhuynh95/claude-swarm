@@ -6,6 +6,7 @@ import { Command } from 'commander';
 import { watchCommand } from './commands/watch/watch-command.js';
 import { readCommand } from './cli/slack-reader.js';
 import { brainstormCommand } from './cli/brainstormer.js';
+import { grillMeCommand } from './cli/grill-me.js';
 import { reportCommand } from './cli/report-issue.js';
 import { statusCommand } from './commands/status/status-command.js';
 import { buildCommand } from './commands/build/build-command.js';
@@ -24,6 +25,7 @@ program
 program.addCommand(watchCommand);
 program.addCommand(readCommand);
 program.addCommand(brainstormCommand);
+program.addCommand(grillMeCommand);
 program.addCommand(reportCommand);
 program.addCommand(statusCommand);
 program.addCommand(buildCommand);

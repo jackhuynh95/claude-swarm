@@ -28,6 +28,7 @@ const PHASE_CONFIGS: Record<PhaseType, PhaseConfig> = {
   design_review: { model: 'sonnet', effort: 'medium', maxTurns: 3, timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob'] },
   retro:    { model: 'sonnet', effort: 'medium', maxTurns: 3, timeoutMs: 180_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
   watzup:   { model: 'sonnet', effort: 'low',    maxTurns: 2, timeoutMs: 120_000, tools: ['Read', 'Grep', 'Glob', 'Bash'] },
+  grill_me: { model: 'opus',   effort: 'max',    maxTurns: 10, timeoutMs: 600_000, tools: ['Read', 'Grep', 'Glob'] },
 };
 
 /** Map config kebab-case keys → PhaseType values */
@@ -59,6 +60,7 @@ const CONFIG_KEY_MAP: Record<string, PhaseType> = {
   'design-review':   'design_review',
   'retro':           'retro',
   'watzup':          'watzup',
+  'grill-me':        'grill_me',
 };
 
 /**
