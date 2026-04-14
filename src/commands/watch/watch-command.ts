@@ -5,7 +5,7 @@ import type { GHIssue, PhaseResult, WatchConfig, ModelOverrides, PhaseModelConfi
 import { classifyIssue } from './phases/issue-router.js';
 import { executeDebugFlow } from './phases/debug-flow.js';
 import { executeShipFlow } from './phases/ship-flow.js';
-import { executePostShip } from './phases/post-ship-runner.js';
+import { executePostShip, executeBestEffortDebrief } from './phases/post-ship-runner.js';
 import { executeClarifyPhase } from './phases/clarifier.js';
 import { transitionLabel, addComment } from './phases/label-manager.js';
 import { resolveRepo, loadProjectConfig } from '../../config-resolver.js';
@@ -192,10 +192,19 @@ async function processIssue(
 
       const allPhases = [...flowResults, ...postShipResult.results];
       const failCount = allPhases.filter(r => !r.success).length;
-      console.log(`[watch] #${issue.number} complete — verdict=${postShipResult.verdict} phases=${allPhases.length} failures=${failCount}`);
+      const completionStatus = postShipResult.officialComplete
+        ? 'OFFICIAL COMPLETE'
+        : 'WARNING: vault trace may be incomplete';
+      console.log(
+        `[watch] #${issue.number} ${completionStatus} — verdict=${postShipResult.verdict} phases=${allPhases.length} failures=${failCount}`
+      );
     } else {
+      // No vault — run best-effort debrief only; not officially traceable
+      await executeBestEffortDebrief(classified, options.auto);
       const failCount = flowResults.filter(r => !r.success).length;
-      console.log(`[watch] #${issue.number} flow complete — phases=${flowResults.length} failures=${failCount}`);
+      console.log(
+        `[watch] #${issue.number} BEST-EFFORT COMPLETE — phases=${flowResults.length} failures=${failCount} | no vault trace (not official)`
+      );
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

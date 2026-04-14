@@ -28,6 +28,7 @@ export interface PostShipResult {
   verdict: 'PASS' | 'FAIL';
   pipelinePassed: boolean;
   shipPath: 'ck-ship' | 'fallback' | 'none';  // which PR creation path was used
+  officialComplete: boolean;  // true when vault trace written (PASS + vault path)
 }
 
 // Regex to extract PR URL from /ck:ship output
@@ -71,6 +72,31 @@ function parseShipResult(output: string): { success: boolean; prUrl?: string } {
 }
 
 /**
+ * Lightweight debrief for runs without --vault.
+ * Best-effort only — never throws, never blocks.
+ */
+export async function executeBestEffortDebrief(
+  classified: ClassifiedIssue,
+  autoMode: boolean,
+  cwd?: string,
+): Promise<void> {
+  const { issue, issueType } = classified;
+  const prompt = `/ck:debrief Compare spec vs built for #${issue.number}: ${issue.title}
+
+Type: ${issueType} | Mode: best-effort (no vault)
+Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;
+
+  try {
+    const result = await invokeClaudePhase(prompt, 'debrief', undefined, undefined, autoMode, cwd);
+    if (result.artifacts?.length) {
+      console.log(`[post-ship] debrief artifact: ${result.artifacts[0]}`);
+    }
+  } catch {
+    // never block
+  }
+}
+
+/**
  * Orchestrates all post-ship phases:
  * test-flow (green) → security-flow (red, if label) → scout → predict → ship (try) → fallback → design-review → slack → journal → llms → record
  *
@@ -97,7 +123,7 @@ export async function executePostShip(
   results.push(...greenResult.results);
 
   if (!greenResult.greenPass) {
-    return { results, verdict: 'FAIL', pipelinePassed: false, shipPath: 'none' };
+    return { results, verdict: 'FAIL', pipelinePassed: false, shipPath: 'none', officialComplete: false };
   }
 
   // 2. RED TESTING — security-flow (only if GREEN PASS + security label), advisory
@@ -230,5 +256,11 @@ export async function executePostShip(
     // never block pipeline
   }
 
-  return { results, verdict, pipelinePassed: verdict === 'PASS', shipPath };
+  return {
+    results,
+    verdict,
+    pipelinePassed: verdict === 'PASS',
+    shipPath,
+    officialComplete: verdict === 'PASS',  // vault always set when executePostShip() is called
+  };
 }
