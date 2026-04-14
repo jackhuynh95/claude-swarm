@@ -5,6 +5,7 @@
 **Why now**: current flows are strong at building, but still too eager to move from issue/topic to `/ck:plan` and `/ck:cook` with too little recorded reasoning.
 **Core rule**: no important build without a written spec trace before it, and no important completion without a debrief trace after it.
 **Temporary scope**: `grill-me` replaces `ck:brainstorm` in builder/manual planning flows first. Watcher keeps its current clarify loop until poll-safe state exists for already-grilled issues.
+**Compatibility rule**: do not break existing generated guides or already-started topic workflows. Apply the new `grill-me` path to new topics going forward.
 
 ---
 
@@ -74,6 +75,14 @@ grill-me -> spec trace -> /ck:plan -> /ck:cook -> review/test -> debrief
 ## Product Decision
 
 We should add a small, strict **`grill-me` clarification stage** before final planning, and a structured **debrief stage** after implementation.
+
+Confirmed decisions for v1:
+
+- `claude-swarm grill-me <topic>` should be the public command, backed internally by the repo-local `grill-me` skill
+- watcher future behavior should block until human answers exist, not auto-generate provisional spec silently
+- debrief should leave a durable trace, or at minimum clear clues and footprint in run history
+- question about keeping `brainstorm` before `grill-me` is dropped for v1 because `grill-me` is separated cleanly
+- watcher poll-safe marker is deferred to later
 
 ### What `grill-me` is
 
@@ -177,9 +186,25 @@ Recommended routing:
 | Step | Model | Why |
 |---|---|---|
 | grill-me | opus | challenge assumptions, ask better questions |
-| plan | opus | architecture + sequencing |
+| plan | opus | architecture + sequencing when spec is still incomplete |
+| plan (`ck:plan --fast`) | sonnet | executor-friendly phasing once `grill-me` already resolved scope, file list, and checklist |
 | cook | sonnet | execution |
 | debrief | sonnet or opus | compare artifacts, extract follow-ups |
+
+Token-saving rule:
+
+```text
+if grill-me already produced:
+  - resolved scope
+  - bounded work
+  - file list
+  - checklist
+
+then:
+  use ck:plan --fast
+  prefer sonnet
+  skip extra research/scout
+```
 
 ---
 
@@ -248,6 +273,46 @@ Acceptance criteria
 
 Prefer one durable source per workflow. Avoid splitting traceability across `docs/`, `plans/`, and vault notes for the same task.
 
+### New Topic Rule
+
+For new topics:
+
+```text
+plans/ = execution truth
+obsidian-vault/ = memory and reuse
+```
+
+Meaning:
+
+- `grill-me` writes the formal spec trace into `plans/<plan-dir>/spec.md`
+- `/ck:plan` and builder execution continue from the `plans/` artifacts
+- `obsidian-vault/` should receive mirrored summaries, lessons, debrief notes, and follow-up clues after execution
+- `obsidian-vault/` should not be the only place that contains the spec for a new topic
+
+### Fast Plan Rule For New Topics
+
+If a new topic already went through a strong `grill-me` pass and now contains a fully-resolved design, then planning should shift into lightweight executor mode.
+
+```text
+new topic
+  -> grill-me on opus
+  -> spec.md captures the design
+  -> ck:plan --fast on sonnet
+  -> ck:cook on sonnet
+```
+
+Use this when the spec already contains:
+
+- question interview already consolidated
+- scope bounded
+- file list identified
+- implementation checklist ready
+
+This matches the advisor/executor split:
+
+- Opus = super-advisor for early clarification
+- Sonnet = executor for phasing and implementation
+
 ---
 
 ## Phase G3 — Integrate `grill-me` Before Planning
@@ -257,12 +322,13 @@ Prefer one durable source per workflow. Avoid splitting traceability across `doc
 | # | Task | Status |
 |---|---|---|
 | 12 | Upgrade `src/commands/build/roadmap-generator.ts` from `brainstorm -> plan -> scenario` to `grill-me -> plan -> scenario`, or `brainstorm -> grill-me -> plan -> scenario` if broad exploration still adds value | Pending |
-| 13 | Decide whether `brainstorm` remains optional before `grill-me` for broad exploration | Pending |
+| 13 | Replace `ck:brainstorm` with `grill-me` as the default pre-plan step for new builder/manual topics | Pending |
 | 14 | Cover all builder/manual roadmap generation entrypoints: `roadmap-generator.ts`, `generate-doc.ts`, and `from-scratch-pipeline.ts` | Pending |
 | 15 | Add threshold rules: trivial fixes can skip `grill-me`; medium/large features cannot | Pending |
 | 16 | Pass spec artifact path or spec summary into `/ck:plan` prompt | Pending |
 | 17 | Update prompt builders so `/ck:plan` consumes clarified scope, decisions, and acceptance criteria | Pending |
 | 18 | Defer watcher integration until poll-safe state exists for already-grilled issues | Deferred |
+| 19 | Keep backward compatibility for already-generated guides and in-progress topic docs; switch only new topics to `grill-me` path | Pending |
 
 **Recommended flow changes**:
 
@@ -283,6 +349,12 @@ build generate
   -> /ck:plan --hard
   -> /ck:scenario
 ```
+
+Compatibility note:
+
+- existing generated guides like `track-4-ai-pages-guide.md` should keep working as-is
+- avoid changing old instructions in a way that breaks already-generated 2-topic or in-progress workflows
+- new topics should use the new `grill-me` entrypoint first
 
 ### Why not use brainstorm for this?
 
@@ -363,11 +435,12 @@ Note: current watcher post-ship order is `test-flow -> security? -> scout -> pre
 
 | # | Task | Status |
 |---|---|---|
-| 28 | Add `claude-swarm grill-me <topic>` command, or expose it clearly through existing slash-command runner | Pending |
+| 28 | Add `claude-swarm grill-me <topic>` as the public command and route it internally to the repo-local `grill-me` skill | Pending |
 | 29 | Add debrief command or post-run helper for manual use | Pending |
 | 30 | Update `src/index.ts` if a new CLI command is added | Pending |
 | 31 | Update `docs/cli-usage-guide.md` with new commands and examples | Pending |
 | 32 | Update `README.md` workflow diagram to show specifications/building/evaluation | Pending |
+| 33 | Preserve current command behavior for existing builder guides; do not rewrite old generated instructions automatically | Pending |
 
 **CLI examples**:
 
@@ -390,11 +463,11 @@ claude-swarm debrief --roadmap @docs/implement-roadmap-x.md --phase 2
 
 | # | Task | Status |
 |---|---|---|
-| 33 | Define when `grill-me` is required vs skippable | Pending |
-| 34 | Define when debrief is required vs best-effort | Pending |
-| 35 | Prevent “done” status if non-trivial work lacks spec trace or debrief trace | Pending |
-| 36 | Decide how this policy works in watcher runs without `--vault` | Pending |
-| 37 | Keep lightweight escape hatch for tiny fixes | Pending |
+| 34 | Define when `grill-me` is required vs skippable | Pending |
+| 35 | Define when debrief is required vs best-effort | Pending |
+| 36 | Prevent “done” status if non-trivial work lacks spec trace or debrief trace | Pending |
+| 37 | Decide how this policy works in watcher runs without `--vault` | Pending |
+| 38 | Keep lightweight escape hatch for tiny fixes | Pending |
 
 **Recommended policy**:
 
@@ -474,20 +547,25 @@ Recommended order:
 |---|---|---|---|---|
 | G1 | Add `grill-me` skill | `.claude/skills/grill-me/SKILL.md` | 6 | Pending |
 | G2 | Persist clarified spec artifact | `plans/*/spec.md` or `docs/spec-*.md` | 5 | Pending |
-| G3 | Wire `grill-me` before plan | builder/manual roadmap generation entrypoints | 7 | Pending |
+| G3 | Wire `grill-me` before plan | builder/manual roadmap generation entrypoints | 8 | Pending |
 | G4 | Add debrief skill/step | `.claude/skills/debrief/SKILL.md` | 5 | Pending |
 | G5 | Wire debrief after build | `epic-executor.ts`, `post-ship-runner.ts`, trace writers | 6 | Pending |
-| G6 | CLI + docs surface | `src/index.ts`, `docs/cli-usage-guide.md`, `README.md` | 5 | Pending |
+| G6 | CLI + docs surface | `src/index.ts`, `docs/cli-usage-guide.md`, `README.md` | 6 | Pending |
 | G7 | Completion policy enforcement | workflow guards + prompts | 5 | Pending |
-| **Total** | **Specification-first + debrief workflow** | **8+ files now, watcher expansion later** | **39** | **0 Complete, 7 Pending** |
+| **Total** | **Specification-first + debrief workflow** | **8+ files now, watcher expansion later** | **41** | **0 Complete, 7 Pending** |
 
 ---
 
+## Resolved Decisions
+
+1. `claude-swarm grill-me <topic>` is the user-facing command, backed by the repo-local `grill-me` skill.
+2. When watcher integration is revisited, it should block until human answers exist.
+3. Debrief must leave trace, clues, or clear footprint even when lightweight.
+4. Existing generated guides and already-started topics should not be broken by this rollout.
+5. For new topics, `plans/` is the execution truth and `obsidian-vault/` is the memory/reuse layer.
+6. If `grill-me` already resolved the design, prefer `ck:plan --fast` on Sonnet to save tokens.
+
 ## Unresolved Questions
 
-1. Should `grill-me` exist as a new dedicated CLI command, or only as a repo-local skill invoked inside other flows?
-2. When watcher integration is revisited, should automation block on missing human answers, or generate a provisional spec and require later approval?
-3. Should debrief always write a file, or can tiny tasks attach it only to run history?
-4. Should `brainstorm` stay before `grill-me` in `build generate`, or should `grill-me` fully replace it for roadmap generation?
-5. For watcher runs without `--vault`, do we allow “best-effort only” debrief, or do we make vault-backed traces mandatory for official completion?
-6. What is the right poll-safe marker for future watcher rollout: issue label, bot marker comment, plan artifact path, or run-state file?
+1. For watcher runs without `--vault`, do we allow “best-effort only” debrief, or do we make vault-backed traces mandatory for official completion?
+2. What is the right poll-safe marker for future watcher rollout: issue label, bot marker comment, plan artifact path, or run-state file?
