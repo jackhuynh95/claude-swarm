@@ -1,3 +1,5 @@
+import { access } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { ClassifiedIssue, PhaseResult, ModelOverrides, PhaseModelConfig } from '../types.js';
 import { executeDesignReview, type DesignReviewConfig } from './design-reviewer.js';
 import { executeTestFlow, type TestFlowConfig } from './test-flow.js';
@@ -93,6 +95,23 @@ Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;
     }
   } catch {
     // never block
+  }
+}
+
+/**
+ * Check whether required vault-backed trace artifacts exist for the given issue.
+ * Requires: run-recorder file AND journal daily file both present in vaultPath.
+ * Best-effort — returns false on any fs error rather than throwing.
+ */
+async function isVaultTracePresent(vaultPath: string, issueNumber: number): Promise<boolean> {
+  const today = new Date().toISOString().slice(0, 10);
+  const runFile   = join(vaultPath, 'Review', 'Runs', `${today}-issue-${issueNumber}.md`);
+  const dailyFile = join(vaultPath, 'Daily', `${today}.md`);
+  try {
+    await Promise.all([access(runFile), access(dailyFile)]);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -271,11 +290,17 @@ Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;
     // never block pipeline
   }
 
+  // Gate officialComplete on confirmed vault artifact presence — ship PASS alone is not sufficient
+  const vaultTraceExists = await isVaultTracePresent(config.vaultPath, issue.number);
+  if (!vaultTraceExists) {
+    console.log('[post-ship] WARNING: vault trace incomplete (run-recorder or journal file missing) — officialComplete=false');
+  }
+
   return {
     results,
     verdict,
     pipelinePassed: verdict === 'PASS',
     shipPath,
-    officialComplete: verdict === 'PASS',  // vault always set when executePostShip() is called
+    officialComplete: verdict === 'PASS' && vaultTraceExists,
   };
 }
