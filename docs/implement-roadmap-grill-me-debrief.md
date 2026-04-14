@@ -110,15 +110,15 @@ And record:
 
 ```mermaid
 flowchart LR
-    A[Issue / Topic / Request] --> B[Grill-Me]
-    B --> C[Spec Artifact]
-    C --> D[/ck:plan]
-    D --> E[Plan Artifact]
-    E --> F[/ck:cook]
-    F --> G[Test + Review + Verify]
-    G --> H[Debrief]
-    H --> I[Debrief Artifact]
-    I --> J[Follow-up tasks / docs / next plan]
+    A("Issue or Topic or Request") --> B("Grill-Me")
+    B --> C("Spec Artifact")
+    C --> D("ck:plan")
+    D --> E("Plan Artifact")
+    E --> F("ck:cook")
+    F --> G("Test Review Verify")
+    G --> H("Debrief")
+    H --> I("Debrief Artifact")
+    I --> J("Follow-up Tasks and Docs")
 
     style B fill:#7c3aed,stroke:#333,color:#fff
     style C fill:#1d4ed8,stroke:#333,color:#fff
