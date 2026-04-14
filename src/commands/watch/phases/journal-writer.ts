@@ -53,6 +53,12 @@ function buildJournalPrompt(
     .flatMap((r) => r.artifacts ?? [])
     .find((a) => a.includes('pull')) ?? 'none';
 
+  // Include debrief output in journal prompt so "Decisions Made" and "Lessons Learned" are grounded
+  const debriefOutput = flowResults.find(r => r.phase === 'debrief')?.output ?? '';
+  const debriefSection = debriefOutput
+    ? `\n## Debrief (spec vs built)\n${debriefOutput.slice(0, 2000)}\n\nUse the above debrief when writing "Decisions Made" and "Lessons Learned" sections.\n`
+    : '';
+
   const failedPhases = flowResults
     .filter((r) => !r.success && r.error)
     .map((r) => `- ${r.phase}: ${r.error}`);
@@ -81,7 +87,7 @@ ${phasesSummary}
 
 Failed phase details:
 ${errorsSection}
-
+${debriefSection}
 ## Instructions
 
 1. Read ${vaultPath}/Daily/${today}.md if it exists, count the number of existing "## Dev Session" headings (call that N), then append a new section as Dev Session N+1.

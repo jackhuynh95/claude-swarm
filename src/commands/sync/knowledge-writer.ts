@@ -14,7 +14,7 @@ export interface KnowledgeNote {
 export interface KnowledgeMetadata {
   issue?: number;
   project: string;
-  sourcePhase: 'journal' | 'run-record' | 'cook' | 'plan';
+  sourcePhase: 'journal' | 'run-record' | 'cook' | 'plan' | 'debrief';
   date: string; // YYYY-MM-DD
   taskId?: string; // optional task identifier (e.g. "1.2")
 }

@@ -482,10 +482,19 @@ export async function executeFromRoadmap(
         : cmSpinner.warn(chalk.yellow(`    commit skipped (no changes or failed)`));
 
       // Step 3.5: Debrief — spec vs built comparison, best-effort, never blocks pipeline
+      let debriefStdout = '';
       try {
         const debriefPrompt = `/ck:debrief Compare spec vs built for task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}. Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;
-        await runStep('debrief', debriefPrompt, opts, configModels);
+        const debriefResult = await runStep('debrief', debriefPrompt, opts, configModels);
+        debriefStdout = debriefResult.stdout;
       } catch { /* swallow */ }
+
+      // Feed debrief output into lesson extractor so vault gets spec-vs-built trace
+      if (debriefStdout) {
+        try {
+          await extractLessonsFromCook(debriefStdout, issue.id, issue.title, epic.title, roadmapPath, vaultPath);
+        } catch { /* swallow */ }
+      }
 
       // Step 3.6: Knowledge extraction from recent Notes/ — best-effort, never blocks pipeline
       try {

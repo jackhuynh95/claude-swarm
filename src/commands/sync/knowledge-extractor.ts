@@ -123,6 +123,18 @@ export async function extractKnowledge(
     date: today,
   };
 
+  // Extract debrief output directly into Knowledge/ (spec vs built trace)
+  const debriefResult = [...flowResults, ...postShipResults].find(r => r.phase === 'debrief');
+  if (debriefResult?.output) {
+    try {
+      await captureKnowledge(
+        vaultPath,
+        { title: `debrief-${today}-issue-${classified.issue.number}`, content: debriefResult.output.slice(0, 3000) },
+        { ...baseMetadata, sourcePhase: 'debrief' },
+      );
+    } catch { /* best-effort */ }
+  }
+
   // Extract from recently-written Notes/ (journal output)
   await extractFromRecentNotes(vaultPath, baseMetadata);
 
