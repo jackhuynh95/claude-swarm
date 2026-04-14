@@ -4,7 +4,7 @@ date: 2026-04-14
 status: in-progress
 priority: high
 blockedBy: []
-blocks: [260414-1630-spec-artifact-writer]
+blocks: [260414-1630-spec-artifact-writer, 260414-1635-g3-builder-grill-me-integration]
 ---
 
 # Plan: grill-me Command + Skill (B1)
