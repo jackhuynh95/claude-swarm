@@ -526,6 +526,28 @@ This gives the team:
 - clearer human responsibility
 - better follow-up discovery after implementation
 
+## Native Build Scripts
+
+Run these in order:
+
+```bash
+# 1. Builder/manual workflow first
+./build-grill-me-debrief-builder.sh --auto
+
+# 2. Watcher workflow second
+./build-grill-me-debrief-watcher.sh --auto
+```
+
+Purpose split:
+
+- `build-grill-me-debrief-builder.sh`
+  builder/manual new-topic flow first
+  `grill-me -> spec.md -> /ck:plan --fast -> /ck:cook -> debrief`
+
+- `build-grill-me-debrief-watcher.sh`
+  watcher debrief + trace policy second
+  watcher clarify/grill-me migration still deferred
+
 ---
 
 ## Implementation Order
