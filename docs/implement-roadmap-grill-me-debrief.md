@@ -4,6 +4,7 @@
 **Goal**: add a traceable specification-first workflow so `claude-swarm` does not jump from vague intent to implementation and produce dark code.
 **Why now**: current flows are strong at building, but still too eager to move from issue/topic to `/ck:plan` and `/ck:cook` with too little recorded reasoning.
 **Core rule**: no important build without a written spec trace before it, and no important completion without a debrief trace after it.
+**Temporary scope**: `grill-me` replaces `ck:brainstorm` in builder/manual planning flows first. Watcher keeps its current clarify loop until poll-safe state exists for already-grilled issues.
 
 ---
 
@@ -188,7 +189,7 @@ Concrete gaps in current repo behavior:
 
 | Area | Current | Gap |
 |---|---|---|
-| Watch clarify flow | `executeClarifyPhase()` already blocks unclear issues with GitHub comment + label loop | too shallow today; no spec artifact; should be upgraded into `grill-me`, not duplicated |
+| Watch clarify flow | `executeClarifyPhase()` already blocks unclear issues with GitHub comment + label loop | keep unchanged for now; poll-safe state needed before `grill-me` can replace it |
 | Build generate | `brainstorm -> /ck:plan --hard -> /ck:scenario` | no explicit clarification interview artifact |
 | Build run | `plan? -> cook -> commit -> final push` | no per-task debrief and no per-task test/review artifact to compare against |
 | Docs | roadmap + CLI docs exist | no documented spec-first workflow |
@@ -257,12 +258,11 @@ Prefer one durable source per workflow. Avoid splitting traceability across `doc
 |---|---|---|
 | 12 | Upgrade `src/commands/build/roadmap-generator.ts` from `brainstorm -> plan -> scenario` to `grill-me -> plan -> scenario`, or `brainstorm -> grill-me -> plan -> scenario` if broad exploration still adds value | Pending |
 | 13 | Decide whether `brainstorm` remains optional before `grill-me` for broad exploration | Pending |
-| 14 | Upgrade `src/commands/watch/phases/clarifier.ts` into a stronger `grill-me`-style clarify gate instead of adding a second watcher clarification stage | Pending |
-| 15 | Upgrade `src/commands/watch/phases/ship-flow.ts` so plan prompts consume the clarified spec artifact, not only raw issue body | Pending |
-| 16 | Cover all roadmap generation entrypoints: `roadmap-generator.ts`, `generate-doc.ts`, and `from-scratch-pipeline.ts` | Pending |
-| 17 | Add threshold rules: trivial fixes can skip `grill-me`; medium/large features cannot | Pending |
-| 18 | Pass spec artifact path or spec summary into `/ck:plan` prompt | Pending |
-| 19 | Update prompt builders so `/ck:plan` consumes clarified scope, decisions, and acceptance criteria | Pending |
+| 14 | Cover all builder/manual roadmap generation entrypoints: `roadmap-generator.ts`, `generate-doc.ts`, and `from-scratch-pipeline.ts` | Pending |
+| 15 | Add threshold rules: trivial fixes can skip `grill-me`; medium/large features cannot | Pending |
+| 16 | Pass spec artifact path or spec summary into `/ck:plan` prompt | Pending |
+| 17 | Update prompt builders so `/ck:plan` consumes clarified scope, decisions, and acceptance criteria | Pending |
+| 18 | Defer watcher integration until poll-safe state exists for already-grilled issues | Deferred |
 
 **Recommended flow changes**:
 
@@ -270,8 +270,7 @@ Prefer one durable source per workflow. Avoid splitting traceability across `doc
 
 ```text
 issue
-  -> upgraded clarify/grill-me gate
-  -> spec artifact
+  -> existing clarify gate
   -> /ck:plan
   -> /ck:cook
 ```
@@ -289,6 +288,12 @@ build generate
 
 Because `brainstorm` explores options.
 `grill-me` should force decisions and surface missing information.
+
+Temporary rollout note:
+
+- builder/manual flows: `grill-me` replaces `ck:brainstorm` as the default pre-plan step
+- watcher flows: keep current clarify behavior unchanged for now
+- future watcher rollout needs a durable marker for `already-grilled` or equivalent poll-safe state
 
 ---
 
@@ -412,8 +417,8 @@ Primary files likely affected:
 | Area | Files |
 |---|---|
 | New skills | `.claude/skills/grill-me/SKILL.md`, `.claude/skills/debrief/SKILL.md` |
-| Watch flow | `src/commands/watch/phases/clarifier.ts`, `src/commands/watch/phases/ship-flow.ts`, `src/commands/watch/phases/post-ship-runner.ts` |
-| Watch phase plumbing | `src/commands/watch/types.ts`, `src/commands/watch/phases/model-router.ts`, `src/commands/watch/watch-command.ts` |
+| Watch flow | `src/commands/watch/phases/post-ship-runner.ts` |
+| Watch phase plumbing | optional later: `src/commands/watch/types.ts`, `src/commands/watch/phases/model-router.ts`, `src/commands/watch/watch-command.ts` |
 | Build generate | `src/commands/build/roadmap-generator.ts`, `src/commands/build/generate-doc.ts`, `src/commands/build/from-scratch-pipeline.ts` |
 | Build run | `src/commands/build/epic-executor.ts` |
 | CLI | `src/index.ts`, possible new `src/cli/grill-me.ts`, possible new `src/cli/debrief.ts` |
@@ -455,7 +460,7 @@ Recommended order:
 
 1. G1 `grill-me` skill
 2. G2 spec artifact writer
-3. G3 pre-plan integration in `build generate` and ship flow
+3. G3 pre-plan integration in builder/manual flows
 4. G4 debrief skill/template
 5. G5 debrief integration in builder + watcher
 6. G6 CLI/docs updates
@@ -469,19 +474,20 @@ Recommended order:
 |---|---|---|---|---|
 | G1 | Add `grill-me` skill | `.claude/skills/grill-me/SKILL.md` | 6 | Pending |
 | G2 | Persist clarified spec artifact | `plans/*/spec.md` or `docs/spec-*.md` | 5 | Pending |
-| G3 | Wire `grill-me` before plan | `clarifier.ts`, `ship-flow.ts`, roadmap generation entrypoints | 8 | Pending |
+| G3 | Wire `grill-me` before plan | builder/manual roadmap generation entrypoints | 7 | Pending |
 | G4 | Add debrief skill/step | `.claude/skills/debrief/SKILL.md` | 5 | Pending |
 | G5 | Wire debrief after build | `epic-executor.ts`, `post-ship-runner.ts`, trace writers | 6 | Pending |
 | G6 | CLI + docs surface | `src/index.ts`, `docs/cli-usage-guide.md`, `README.md` | 5 | Pending |
 | G7 | Completion policy enforcement | workflow guards + prompts | 5 | Pending |
-| **Total** | **Specification-first + debrief workflow** | **10+ files** | **40** | **0 Complete, 7 Pending** |
+| **Total** | **Specification-first + debrief workflow** | **8+ files now, watcher expansion later** | **39** | **0 Complete, 7 Pending** |
 
 ---
 
 ## Unresolved Questions
 
 1. Should `grill-me` exist as a new dedicated CLI command, or only as a repo-local skill invoked inside other flows?
-2. Should watcher automation block on missing human answers, or generate a provisional spec and require later approval?
+2. When watcher integration is revisited, should automation block on missing human answers, or generate a provisional spec and require later approval?
 3. Should debrief always write a file, or can tiny tasks attach it only to run history?
 4. Should `brainstorm` stay before `grill-me` in `build generate`, or should `grill-me` fully replace it for roadmap generation?
 5. For watcher runs without `--vault`, do we allow “best-effort only” debrief, or do we make vault-backed traces mandatory for official completion?
+6. What is the right poll-safe marker for future watcher rollout: issue label, bot marker comment, plan artifact path, or run-state file?
