@@ -4,7 +4,7 @@ date: 2026-04-14
 status: pending
 priority: high
 blockedBy: []
-blocks: []
+blocks: [260414-1701-g5-watcher-debrief-post-ship]
 ---
 
 # Plan: G4+G5 — Debrief Skill + Builder Executor Wiring
