@@ -4,7 +4,7 @@ date: 2026-04-14
 status: in-progress
 priority: high
 blockedBy: []
-blocks: []
+blocks: [260414-1630-spec-artifact-writer]
 ---
 
 # Plan: grill-me Command + Skill (B1)
