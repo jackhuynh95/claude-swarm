@@ -12,7 +12,7 @@ import { acquireCycleLock, releaseCycleLock } from '../sync/cycle-guard.js';
 import { extractFromRecentNotes } from '../sync/knowledge-extractor.js';
 import type { ClaudeModel, EffortLevel, ModelOverrides, PhaseModelConfig, PhaseType } from '../watch/types.js';
 
-type Step = 'plan' | 'plan-red-team' | 'cook' | 'test' | 'predict' | 'ship';
+type Step = 'plan' | 'plan-red-team' | 'cook' | 'test' | 'predict' | 'ship' | 'debrief';
 
 /** Map builder step names → PhaseType for model-router lookup */
 const STEP_TO_PHASE: Record<Step, PhaseType> = {
@@ -22,6 +22,7 @@ const STEP_TO_PHASE: Record<Step, PhaseType> = {
   test:            'test',
   predict:         'predict',
   ship:            'ship',
+  debrief:         'debrief',
 };
 
 /** Map short model name → full Claude model ID */
@@ -480,7 +481,13 @@ export async function executeFromRoadmap(
         ? cmSpinner.succeed(chalk.green(`    committed`))
         : cmSpinner.warn(chalk.yellow(`    commit skipped (no changes or failed)`));
 
-      // Step 3.5: Knowledge extraction from recent Notes/ — best-effort, never blocks pipeline
+      // Step 3.5: Debrief — spec vs built comparison, best-effort, never blocks pipeline
+      try {
+        const debriefPrompt = `/ck:debrief Compare spec vs built for task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}. Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;
+        await runStep('debrief', debriefPrompt, opts, configModels);
+      } catch { /* swallow */ }
+
+      // Step 3.6: Knowledge extraction from recent Notes/ — best-effort, never blocks pipeline
       try {
         const pullAllowed = await acquireCycleLock(vaultPath, 'pull');
         if (pullAllowed) {

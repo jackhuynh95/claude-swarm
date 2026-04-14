@@ -209,7 +209,22 @@ export async function executePostShip(
   const designResult = await executeDesignReview(classified, designConfig);
   results.push(designResult.phaseResult);
 
-  // 8. Slack report — best-effort
+  // 8. Debrief — spec vs built comparison, best-effort, never blocks pipeline
+  try {
+    const debriefPrompt = `/ck:debrief Compare spec vs built for #${issue.number}: ${issue.title}
+
+Type: ${classified.issueType} | Mode: official (vault)
+Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;
+    const debriefResult = await invokeClaudePhase(
+      debriefPrompt, 'debrief', config.configModels, config.cliOverrides, config.autoMode, config.cwd,
+    );
+    results.push(debriefResult);
+    console.log('[post-ship] debrief complete');
+  } catch {
+    // never block
+  }
+
+  // 9. Slack report — best-effort
   const slackConfig: SlackReporterConfig = {
     repo: config.repo,
     autoMode: config.autoMode,
@@ -220,7 +235,7 @@ export async function executePostShip(
   );
   results.push(slackResult);
 
-  // 9. Journal — always runs last
+  // 10. Journal — always runs last
   const journalConfig: JournalConfig = {
     repo: config.repo,
     autoMode: config.autoMode,
@@ -232,18 +247,18 @@ export async function executePostShip(
   );
   results.push(journalResult);
 
-  // 10. AI-native docs generation — best-effort
+  // 11. AI-native docs generation — best-effort
   const llmsPrompt = `/ck:llms Generate llms.txt for AI-native codebase comprehension after shipping #${issue.number}`;
   const llmsResult = await invokeClaudePhase(
     llmsPrompt, 'docs', config.configModels, config.cliOverrides, config.autoMode, config.cwd,
   );
   results.push(llmsResult);
 
-  // 11. Run recorder — pure file write, best-effort
+  // 12. Run recorder — pure file write, best-effort
   const runConfig: RunRecordConfig = { vaultPath: config.vaultPath };
   await recordRun(classified, runConfig, flowResults, results, verdict);
 
-  // 12. Knowledge extraction — classify recent notes + failed phases, best-effort
+  // 13. Knowledge extraction — classify recent notes + failed phases, best-effort
   try {
     const lockOk = await acquireCycleLock(config.vaultPath, 'pull');
     if (lockOk) {
