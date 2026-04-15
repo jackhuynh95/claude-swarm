@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 import chalk from 'chalk';
+import { renderPlanStatus } from './plan-status.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -309,7 +310,13 @@ async function renderCostSummary(): Promise<void> {
 
 // ─── Public API ────────────────────────────────────────────────────────────────
 
-export async function showBuildStatus(options?: { milestone?: string }): Promise<void> {
+export async function showBuildStatus(options?: { milestone?: string; plan?: string }): Promise<void> {
+  // Plan-file mode: read plan.md directly, no GitHub needed
+  if (options?.plan) {
+    renderPlanStatus(options.plan);
+    return;
+  }
+
   // 1. Detect repo
   let repo: RepoInfo;
   try {

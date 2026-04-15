@@ -181,8 +181,9 @@ buildCommand
 
 buildCommand
   .command('status')
-  .description('Show build progress across milestone/epic/issue hierarchy')
-  .option('--milestone <name>', 'Filter by milestone name')
+  .description('Show build progress — from a local plan.md file or GitHub milestone/epic hierarchy')
+  .option('--milestone <name>', 'Filter by milestone name (GitHub mode)')
+  .option('--plan <path>', 'Read a local plan.md file for phase-level progress (no GitHub needed)')
   .action(async (opts) => {
-    await showBuildStatus(opts);
+    await showBuildStatus({ milestone: opts.milestone, plan: opts.plan });
   });
