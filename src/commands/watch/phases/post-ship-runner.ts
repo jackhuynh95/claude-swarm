@@ -9,6 +9,7 @@ import { recordRun, type RunRecordConfig } from './run-recorder.js';
 import { extractKnowledge } from '../../sync/knowledge-extractor.js';
 import { acquireCycleLock } from '../../sync/cycle-guard.js';
 import { invokeClaudePhase } from './claude-invoker.js';
+import { loadVaultContext } from './vault-context-loader.js';
 import { executeSecurityFlow, type SecurityFlowConfig } from './security-flow.js';
 import { createPullRequest } from './branch-manager.js';
 
@@ -80,13 +81,24 @@ function parseShipResult(output: string): { success: boolean; prUrl?: string } {
 export async function executeBestEffortDebrief(
   classified: ClassifiedIssue,
   autoMode: boolean,
+  vaultPath?: string,
   cwd?: string,
 ): Promise<void> {
   const { issue, issueType } = classified;
+
+  // Load vault context best-effort — skip cleanly if no vault or load fails
+  let vaultSection = '';
+  if (vaultPath) {
+    try {
+      const ctx = await loadVaultContext(vaultPath, { title: issue.title });
+      if (ctx) vaultSection = `\n\n${ctx}`;
+    } catch { /* swallow */ }
+  }
+
   const prompt = `/ttw:debrief Compare spec vs built for #${issue.number}: ${issue.title}
 
 Type: ${issueType} | Mode: best-effort (no vault)
-Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;
+Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.${vaultSection}`;
 
   try {
     const result = await invokeClaudePhase(prompt, 'debrief', undefined, undefined, autoMode, cwd);
@@ -230,10 +242,17 @@ export async function executePostShip(
 
   // 8. Debrief — spec vs built comparison, best-effort, never blocks pipeline
   try {
+    // Load vault context for debrief — same layer as plan/cook in builder
+    let debriefVaultSection = '';
+    try {
+      const ctx = await loadVaultContext(config.vaultPath, { title: issue.title });
+      if (ctx) debriefVaultSection = `\n\n${ctx}`;
+    } catch { /* swallow */ }
+
     const debriefPrompt = `/ttw:debrief Compare spec vs built for #${issue.number}: ${issue.title}
 
 Type: ${classified.issueType} | Mode: official (vault)
-Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;
+Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.${debriefVaultSection}`;
     const debriefResult = await invokeClaudePhase(
       debriefPrompt, 'debrief', config.configModels, config.cliOverrides, config.autoMode, config.cwd,
     );
