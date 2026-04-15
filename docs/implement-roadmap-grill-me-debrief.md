@@ -21,7 +21,7 @@ This is the active builder workflow for new topics as of 2026-04-14:
 
 4. test / review / commit
 
-5. claude-swarm debrief                # Compare spec vs plan vs built
+5. /ttw:debrief                         # Spec-vs-Built Review
    └── writes plans/<dir>/debrief.md
 ```
 

@@ -83,7 +83,7 @@ export async function executeBestEffortDebrief(
   cwd?: string,
 ): Promise<void> {
   const { issue, issueType } = classified;
-  const prompt = `/ck:debrief Compare spec vs built for #${issue.number}: ${issue.title}
+  const prompt = `/ttw:debrief Compare spec vs built for #${issue.number}: ${issue.title}
 
 Type: ${issueType} | Mode: best-effort (no vault)
 Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;
@@ -230,7 +230,7 @@ export async function executePostShip(
 
   // 8. Debrief — spec vs built comparison, best-effort, never blocks pipeline
   try {
-    const debriefPrompt = `/ck:debrief Compare spec vs built for #${issue.number}: ${issue.title}
+    const debriefPrompt = `/ttw:debrief Compare spec vs built for #${issue.number}: ${issue.title}
 
 Type: ${classified.issueType} | Mode: official (vault)
 Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;

@@ -89,7 +89,7 @@ claude-swarm watch --auto --effort low
 | `read` | Extract tasks from Slack channel |
 | `brainstorm` | Brainstorm solutions and optionally create GitHub issues |
 | `grill-me` | Spec interview before planning — asks sharp questions, writes spec artifact |
-| `debrief` | Post-build comparison — compares spec/plan/built result, records deferrals |
+| `debrief` | TTW Debrief (Spec-vs-Built Review) — compares spec/plan/built result, records deferrals |
 | `report` | Send Slack report for a GitHub issue |
 | `status` | Operator dashboard: tasks, history, cost, capabilities |
 | `build` | Generate roadmaps, create issues, and execute implementation pipelines |
@@ -620,9 +620,11 @@ claude-swarm build status --milestone "v2.1"
 
 ---
 
-## debrief
+## TTW Debrief
 
-Post-build comparison step. Compares requested scope, clarified spec, generated plan, and built result. Records what matched, what changed, what was deferred, and what follow-up tasks exist.
+**Spec-vs-Built Review.** Compares requested scope, clarified spec, generated plan, and built result. Records what matched, what changed, what was deferred, and what follow-up tasks exist.
+
+Skill invocation: `/ttw:debrief`
 
 ```bash
 claude-swarm debrief [options]

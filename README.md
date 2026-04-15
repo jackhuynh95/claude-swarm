@@ -36,7 +36,7 @@ New Topic or Request
   ├── /ck:plan --fast → Phase files (Sonnet executor mode)
   ├── /ck:cook        → Implementation
   ├── test / review   → Verify
-  └── debrief         → Debrief artifact: matched, changed, deferred, follow-ups
+  └── /ttw:debrief    → TTW Debrief: matched, changed, deferred, follow-ups
 ```
 
 **Compatibility**: Existing generated guides and in-progress topic workflows are not affected.
