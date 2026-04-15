@@ -99,7 +99,7 @@ We should add a small, strict **`grill-me` clarification stage** before final pl
 
 Confirmed decisions for v1:
 
-- `claude-swarm grill-me <topic>` should be the public command, backed internally by the repo-local `grill-me` skill
+- `claude-swarm grill-me <topic>` should be the public command, backed internally by `/ttw:grill-me` skill at `.claude/skills/grill-me/SKILL.md`
 - watcher future behavior should block until human answers exist, not auto-generate provisional spec silently
 - debrief should leave a durable trace, or at minimum clear clues and footprint in run history
 - question about keeping `brainstorm` before `grill-me` is dropped for v1 because `grill-me` is separated cleanly

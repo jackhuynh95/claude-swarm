@@ -331,6 +331,8 @@ claude-swarm report --repo myorg/myapp --issue 42 --channel "#releases"
 
 Run a focused spec-interview before planning. Forces hidden assumptions into the open, proposes decision branches, and writes a compact spec artifact (`plans/<dir>/spec.md`).
 
+Skill invocation: `/ttw:grill-me`
+
 ```bash
 claude-swarm grill-me <topic> [options]
 ```

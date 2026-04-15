@@ -25,7 +25,7 @@ async function executeGrillMe(topic: string, options: GrillMeOptions): Promise<v
     ? `\nWrite spec.md to: ${options.planDir}/spec.md`
     : '';
 
-  const prompt = `Use the /grill-me skill to run a spec-interview on this topic.
+  const prompt = `Use the /ttw:grill-me skill to run a spec-interview on this topic.
 
 Topic: ${topic}${contextContent}${planDirHint}
 
