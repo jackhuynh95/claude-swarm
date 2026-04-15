@@ -89,7 +89,7 @@ claude-swarm watch --auto --effort low
 | `read` | Extract tasks from Slack channel |
 | `brainstorm` | Brainstorm solutions and optionally create GitHub issues |
 | `grill-me` | Spec interview before planning — asks sharp questions, writes spec artifact |
-| `debrief` | TTW Debrief (Spec-vs-Built Review) — compares spec/plan/built result, records deferrals |
+| `debrief` | TTW Debrief (Spec-vs-Built Review) — internal pipeline step, not a standalone command |
 | `report` | Send Slack report for a GitHub issue |
 | `status` | Operator dashboard: tasks, history, cost, capabilities |
 | `build` | Generate roadmaps, create issues, and execute implementation pipelines |
@@ -622,54 +622,13 @@ claude-swarm build status --milestone "v2.1"
 
 ## TTW Debrief
 
-**Spec-vs-Built Review.** Compares requested scope, clarified spec, generated plan, and built result. Records what matched, what changed, what was deferred, and what follow-up tasks exist.
+**Spec-vs-Built Review.** Not a standalone CLI command — runs automatically as an internal pipeline step.
 
-Skill invocation: `/ttw:debrief`
+Invoked as `/ttw:debrief` inside:
+- **Builder** (`build run`): step 3.5 after each task commit in `executeFromRoadmap()`
+- **Watcher** (`watch`): step 8 inside `executePostShip()` after design review
 
-```bash
-claude-swarm debrief [options]
-```
-
-### Options
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--spec <file>` | Spec artifact path (`@filepath`) | auto-detect from active plan |
-| `--plan <file>` | Plan artifact path (`@filepath`) | auto-detect from active plan |
-| `--phase <n>` | Scope debrief to a specific phase | — |
-| `-o, --output <dir>` | Output directory for debrief artifact | `plans/<dir>/` |
-| `-m, --model <model>` | Model override: `sonnet`, `opus`, `haiku` | `sonnet` |
-
-### What It Produces
-
-`debrief` writes a `debrief.md` artifact answering:
-
-- Did we build what we said we would build?
-- Which decisions changed during implementation?
-- Which edge cases appeared only during coding/testing?
-- What was intentionally deferred?
-- What should become the next task or issue?
-
-### When to Use
-
-- After completing any non-trivial feature or roadmap phase
-- Required for: features, roadmaps, architectural changes
-- Optional for: tiny fixes
-
-### Examples
-
-```bash
-# Debrief using auto-detected plan
-claude-swarm debrief
-
-# Debrief with explicit spec and plan
-claude-swarm debrief \
-  --spec @plans/260414-1643-my-feature/spec.md \
-  --plan @plans/260414-1643-my-feature/plan.md
-
-# Debrief specific phase only
-claude-swarm debrief --plan @docs/implement-roadmap-x.md --phase 2
-```
+Compares requested scope, clarified spec, generated plan, and built result. Writes `debrief.md` to `plans/reports/`. Output is consumed by journal and knowledge extraction downstream.
 
 ---
 
