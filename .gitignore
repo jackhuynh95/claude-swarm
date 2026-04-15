@@ -32,6 +32,7 @@ Thumbs.db
 .claude/skills/*
 !.claude/skills/release/
 !.claude/skills/grill-me/
+!.claude/skills/debrief/
 .claude/skills/.env*
 CLAUDE.md
 AGENTS.md
