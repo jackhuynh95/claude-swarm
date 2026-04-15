@@ -484,7 +484,7 @@ export async function executeFromRoadmap(
       // Step 3.5: Debrief — spec vs built comparison, best-effort, never blocks pipeline
       let debriefStdout = '';
       try {
-        const debriefPrompt = `/ttw:debrief Compare spec vs built for task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}. Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.`;
+        const debriefPrompt = `/ttw:debrief Compare spec vs built for task: ${issue.title}. Phase: ${epic.title}. Roadmap: ${roadmapPath}. Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.${vaultSection}`;
         const debriefResult = await runStep('debrief', debriefPrompt, opts, configModels);
         debriefStdout = debriefResult.stdout;
       } catch { /* swallow */ }
