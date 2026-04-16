@@ -9,13 +9,15 @@ interface GrillMeOptions {
 }
 
 /**
- * Spawn Claude as an interactive terminal session with stdio: 'inherit'.
- * The user's terminal becomes the interview — stdin flows in, stdout flows out.
- * Returns the exit code when the session ends.
+ * Spawn Claude in interactive session mode (no -p flag).
+ * The initial prompt is passed as a positional argument, which seeds the first
+ * message but keeps the session alive for multi-turn conversation.
+ * stdio: 'inherit' gives the user full terminal control.
  */
 function spawnInteractiveSession(prompt: string, model: string): Promise<number> {
   return new Promise((resolve, reject) => {
-    const args = ['-p', prompt, '--model', model];
+    // No -p flag — Claude starts in interactive mode with the prompt as first message
+    const args = [prompt, '--model', model];
 
     const proc = spawn('claude', args, {
       cwd: process.cwd(),
