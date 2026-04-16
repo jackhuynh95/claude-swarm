@@ -1,8 +1,12 @@
-import { writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+/**
+ * Knowledge writer — classify notes and persist to Knowledge/ via shared note-writer.
+ * Used by: cook-lesson-extractor, knowledge-extractor, and any path that captures knowledge.
+ */
+
 import { classifyNote } from './note-classifier.js';
 import type { NoteInput } from './note-classifier.js';
-import { buildFrontmatter } from './frontmatter-parser.js';
+import { writeNote } from './obsidian-note-writer.js';
+import { mapCategoryToNoteType, toKebabSlug } from './obsidian-note-spec.js';
 
 // --- Types ---
 
@@ -26,32 +30,10 @@ export interface CaptureResult {
   reason?: string;
 }
 
-// --- Constants ---
-
-/** Map classification category → Knowledge subdirectory */
-const CATEGORY_DIR: Record<string, string> = {
-  lesson:    'Lessons',
-  pattern:   'Patterns',
-  decision:  'Decisions',
-  foundation: 'Lessons', // treat as lesson
-};
-
-// --- Helpers ---
-
-function toKebabCase(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .slice(0, 60)
-    .replace(/-$/, '');
-}
-
 // --- Public API ---
 
 /**
- * Classify a note and write it to Knowledge/{category}/ with provenance frontmatter.
+ * Classify a note and write it to Knowledge/{category}/ via shared note-writer.
  * Best-effort — never throws.
  */
 export async function captureKnowledge(
@@ -61,7 +43,7 @@ export async function captureKnowledge(
 ): Promise<CaptureResult> {
   try {
     const noteInput: NoteInput = {
-      filename: toKebabCase(note.title) + '.md',
+      filename: toKebabSlug(note.title) + '.md',
       content: note.content,
     };
 
@@ -74,31 +56,25 @@ export async function captureKnowledge(
       return { captured: false, reason };
     }
 
-    const dir = CATEGORY_DIR[classification.category] ?? 'Lessons';
-    const targetDir = join(vaultPath, 'Knowledge', dir);
-    await mkdir(targetDir, { recursive: true });
-
-    const slug = toKebabCase(note.title);
-    const filename = `${metadata.date}-${slug}.md`;
-    const filePath = join(targetDir, filename);
-
-    const frontmatter = buildFrontmatter({
+    const noteType = mapCategoryToNoteType(classification.category);
+    const result = await writeNote(vaultPath, {
+      noteType,
+      title: note.title,
+      body: note.content,
       date: metadata.date,
-      category: classification.category,
-      'source-phase': metadata.sourcePhase,
-      'source-project': metadata.project,
       project: metadata.project,
+      sourcePhase: metadata.sourcePhase,
       issue: metadata.issue,
-      'task-id': metadata.taskId,
-      'synced-at': new Date().toISOString(),
+      taskId: metadata.taskId,
       tags: ['knowledge', classification.category],
-      'classified-by': 'haiku',
-      'classification-reason': classification.reason,
+      classifiedBy: 'haiku',
+      classificationReason: classification.reason,
     });
-    await writeFile(filePath, frontmatter + note.content, 'utf8');
 
-    console.log(`[knowledge-writer] captured: Knowledge/${dir}/${filename}`);
-    return { captured: true, path: filePath, category: classification.category };
+    if (result.written) {
+      console.log(`[knowledge-writer] captured: ${result.path}`);
+    }
+    return { captured: result.written, path: result.path, category: classification.category, reason: result.reason };
   } catch (err) {
     console.error('[knowledge-writer] error:', err);
     return { captured: false, reason: String(err) };

@@ -1,14 +1,16 @@
+/**
+ * Cook lesson extractor — extract reusable lessons from cook output via haiku,
+ * then persist through the shared knowledge-writer and note-writer layers.
+ */
+
 import Anthropic from '@anthropic-ai/sdk';
-import { writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
 import { captureKnowledge } from './knowledge-writer.js';
 import type { KnowledgeMetadata } from './knowledge-writer.js';
-import { buildFrontmatter } from './frontmatter-parser.js';
+import { writeNote } from './obsidian-note-writer.js';
 
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
-const MAX_COOK_CHARS = 3000; // truncate long cook output
+const MAX_COOK_CHARS = 3000;
 const EXTRACTION_TIMEOUT_MS = 30_000;
-const RUNS_DIR = 'Review/Runs';
 
 interface LessonObject {
   title: string;
@@ -38,7 +40,6 @@ Respond with valid JSON only, no markdown.`;
   try {
     const client = new Anthropic({ apiKey });
 
-    // Race against 30s timeout
     const response = await Promise.race([
       client.messages.create({
         model: HAIKU_MODEL,
@@ -56,7 +57,6 @@ Respond with valid JSON only, no markdown.`;
 
     const text = textBlock.text.trim();
 
-    // Try direct parse, then strip markdown code block
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);
@@ -82,7 +82,10 @@ Respond with valid JSON only, no markdown.`;
   }
 }
 
-/** Write a brief task run summary to Review/Runs/{date}-task-{id}.md */
+/**
+ * Write a brief task run summary to Review/Runs/ via shared note-writer.
+ * Best-effort — never throws.
+ */
 async function writeTaskRunSummary(
   vaultPath: string,
   taskId: string,
@@ -93,21 +96,17 @@ async function writeTaskRunSummary(
   issue?: number,
 ): Promise<void> {
   try {
-    const runsDir = join(vaultPath, RUNS_DIR);
-    await mkdir(runsDir, { recursive: true });
-    const filePath = join(runsDir, `${date}-task-${taskId}.md`);
-    const frontmatter = buildFrontmatter({
+    await writeNote(vaultPath, {
+      noteType: 'task-run',
+      title: taskTitle,
+      body: `# Task Run: ${taskTitle}\n\n**Epic**: ${epicTitle}\n**Date**: ${date}\n**Status**: completed via /ck:cook\n`,
       date,
-      'source-phase': 'cook',
-      'source-project': project,
       project,
+      sourcePhase: 'cook',
       issue,
-      'task-id': taskId,
-      'synced-at': new Date().toISOString(),
+      taskId,
       tags: ['task-run', 'cook'],
     });
-    const body = `# Task Run: ${taskTitle}\n\n**Epic**: ${epicTitle}\n**Date**: ${date}\n**Status**: completed via /ck:cook\n`;
-    await writeFile(filePath, frontmatter + body, 'utf8');
   } catch {
     // best-effort
   }
@@ -127,7 +126,6 @@ export async function extractLessonsFromCook(
   vaultPath: string,
 ): Promise<void> {
   const date = new Date().toISOString().slice(0, 10);
-  // Derive project name from roadmap path (last directory segment before filename)
   const parts = roadmapPath.replace(/\\/g, '/').split('/');
   const project = parts.length > 1 ? (parts[parts.length - 2] ?? 'unknown') : 'unknown';
 
@@ -138,10 +136,10 @@ export async function extractLessonsFromCook(
     taskId,
   };
 
-  // Write task run summary — fire-and-forget
+  // Write task run summary via shared note-writer — fire-and-forget
   writeTaskRunSummary(vaultPath, taskId, taskTitle, epicTitle, date, project).catch(() => {});
 
-  // Extract and capture lessons via haiku
+  // Extract and capture lessons via haiku → knowledge-writer → note-writer
   try {
     const lessons = await extractLessonsWithHaiku(cookOutput, taskTitle);
     for (const lesson of lessons) {

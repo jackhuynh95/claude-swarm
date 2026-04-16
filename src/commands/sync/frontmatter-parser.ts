@@ -16,6 +16,7 @@ export interface ProvenanceFrontmatter {
   'classified-by'?: string; // model used (e.g. "haiku")
   'classification-reason'?: string;
   'injected-from'?: string; // skip marker: "second-brain" if injected from vault
+  verdict?: string; // run verdict (e.g. "PASS", "FAIL")
 }
 
 /** True if content starts with a YAML frontmatter block. */
@@ -51,6 +52,7 @@ export function parseFrontmatter(content: string): ProvenanceFrontmatter {
       case 'classified-by':           result['classified-by'] = val; break;
       case 'classification-reason':   result['classification-reason'] = val.replace(/^"|"$/g, ''); break;
       case 'injected-from':           result['injected-from'] = val; break;
+      case 'verdict':                 result.verdict = val; break;
       case 'tags': {
         const raw = val.replace(/^\[|\]$/g, '');
         result.tags = raw.split(',').map(t => t.trim()).filter(Boolean);
@@ -97,6 +99,7 @@ export function buildFrontmatter(meta: ProvenanceFrontmatter): string {
     lines.push(`classification-reason: "${meta['classification-reason'].replace(/"/g, "'")}"`);
   }
   if (meta['injected-from'])        lines.push(`injected-from: ${meta['injected-from']}`);
+  if (meta.verdict)                 lines.push(`verdict: ${meta.verdict}`);
   lines.push('---', '');
   return lines.join('\n');
 }
