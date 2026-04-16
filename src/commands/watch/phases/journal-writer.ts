@@ -11,7 +11,7 @@ export interface JournalConfig {
 
 /**
  * Obsidian vault journal writer — best-effort, never blocks pipeline.
- * Writes daily entry and extracts notable lessons to Notes/.
+ * Delegates narrative to /obsidian-journal skill; falls back to inline prompt if unavailable.
  */
 export async function executeJournal(
   classified: ClassifiedIssue,
@@ -20,11 +20,22 @@ export async function executeJournal(
   verifyVerdict?: VerifyVerdict,
 ): Promise<PhaseResult> {
   try {
-    const prompt = buildJournalPrompt(classified, config.vaultPath, flowResults, verifyVerdict);
+    const runContext = buildRunContext(classified, config.vaultPath, flowResults, verifyVerdict);
 
+    // Try skill-based narrative first
+    const skillPrompt = buildSkillPrompt(classified, config.vaultPath, runContext);
     const result = await invokeClaudePhase(
-      prompt, 'journal', undefined, undefined, config.autoMode, config.cwd,
+      skillPrompt, 'journal', undefined, undefined, config.autoMode, config.cwd,
     );
+
+    // If skill invocation failed (e.g. skill not installed), fall back to inline prompt
+    if (!result.success) {
+      const fallbackPrompt = buildFallbackPrompt(classified, config.vaultPath, flowResults, verifyVerdict, runContext);
+      return await invokeClaudePhase(
+        fallbackPrompt, 'journal', undefined, undefined, config.autoMode, config.cwd,
+      );
+    }
+
     return result;
   } catch (err) {
     // Never block pipeline
@@ -37,7 +48,8 @@ export async function executeJournal(
   }
 }
 
-function buildJournalPrompt(
+/** Shared run context string used by both skill and fallback prompts. */
+function buildRunContext(
   classified: ClassifiedIssue,
   vaultPath: string,
   flowResults: PhaseResult[],
@@ -45,28 +57,81 @@ function buildJournalPrompt(
 ): string {
   const { issue, issueType } = classified;
   const today = formatDate(new Date());
-  const now = formatTime(new Date());
   const totalMs = flowResults.reduce((sum, r) => sum + r.durationMs, 0);
-  const duration = formatDuration(totalMs);
 
   const prUrl = flowResults
     .flatMap((r) => r.artifacts ?? [])
     .find((a) => a.includes('pull')) ?? 'none';
 
-  // Include debrief output in journal prompt so "Decisions Made" and "Lessons Learned" are grounded
   const debriefOutput = flowResults.find(r => r.phase === 'debrief')?.output ?? '';
   const debriefSection = debriefOutput
-    ? `\n## Debrief (spec vs built)\n${debriefOutput.slice(0, 2000)}\n\nUse the above debrief when writing "Decisions Made" and "Lessons Learned" sections.\n`
+    ? `\nDebrief (spec vs built):\n${debriefOutput.slice(0, 2000)}`
     : '';
 
   const failedPhases = flowResults
     .filter((r) => !r.success && r.error)
     .map((r) => `- ${r.phase}: ${r.error}`);
-  const errorsSection = failedPhases.length > 0 ? failedPhases.join('\n') : 'None';
 
   const phasesSummary = flowResults
     .map((r) => `| ${r.phase} | ${r.success ? 'ok' : 'fail'} | ${formatDuration(r.durationMs)} | ${r.error ?? '—'} |`)
     .join('\n');
+
+  return `Issue: #${issue.number} — ${issue.title}
+Type: ${issueType}
+Verdict: ${verifyVerdict ?? 'N/A'}
+PR: ${prUrl}
+Duration: ${formatDuration(totalMs)}
+Date: ${today}
+Vault: ${vaultPath}
+
+Phase results:
+| Phase | Status | Duration | Error |
+|-------|--------|----------|-------|
+${phasesSummary}
+
+Failed phases:
+${failedPhases.length > 0 ? failedPhases.join('\n') : 'None'}
+${debriefSection}`;
+}
+
+/**
+ * Skill-based prompt: delegates narrative writing to /obsidian-journal.
+ * The skill handles daily-note structure, frontmatter, wikilinks, and lesson extraction.
+ */
+function buildSkillPrompt(
+  classified: ClassifiedIssue,
+  vaultPath: string,
+  runContext: string,
+): string {
+  return `/obsidian-journal Write journal entry for automated pipeline run.
+
+Vault path override: ${vaultPath}
+Project: claude-swarm
+
+${runContext}
+
+Focus on: decisions made, lessons learned, unresolved items. Extract reusable lessons if any.`;
+}
+
+/**
+ * Fallback prompt when /obsidian-journal skill is unavailable.
+ * Replicates the original inline journal-writing instructions.
+ */
+function buildFallbackPrompt(
+  classified: ClassifiedIssue,
+  vaultPath: string,
+  flowResults: PhaseResult[],
+  verifyVerdict: VerifyVerdict | undefined,
+  runContext: string,
+): string {
+  const { issue, issueType } = classified;
+  const today = formatDate(new Date());
+  const now = formatTime(new Date());
+  const totalMs = flowResults.reduce((sum, r) => sum + r.durationMs, 0);
+
+  const prUrl = flowResults
+    .flatMap((r) => r.artifacts ?? [])
+    .find((a) => a.includes('pull')) ?? 'none';
 
   return `Write a daily journal entry for the obsidian vault.
 
@@ -74,32 +139,20 @@ Vault path: ${vaultPath}
 Daily file: ${vaultPath}/Daily/${today}.md
 
 ## Run Data
-Issue: #${issue.number} — ${issue.title}
-Type: ${issueType}
-Verdict: ${verifyVerdict ?? 'N/A'}
-PR: ${prUrl}
-Duration: ${duration}
+${runContext}
 
-Phase results:
-| Phase | Status | Duration | Error |
-|-------|--------|----------|-------|
-${phasesSummary}
-
-Failed phase details:
-${errorsSection}
-${debriefSection}
 ## Instructions
 
-1. Read ${vaultPath}/Daily/${today}.md if it exists, count the number of existing "## Dev Session" headings (call that N), then append a new section as Dev Session N+1.
+1. Read ${vaultPath}/Daily/${today}.md if it exists, count existing "## Dev Session" headings (call that N), then append as Dev Session N+1.
 
-2. If the file does NOT exist, create it with this frontmatter first:
+2. If the file does NOT exist, create it with frontmatter:
 ---
 date: ${today}
 tags: [daily, claude-swarm]
 projects: [claude-swarm]
 ---
 
-3. Append (or write) the following structured section — fill in [brackets] using the run data above:
+3. Append the following structured section:
 
 ## Dev Session [N+1] — ${now}
 
@@ -107,22 +160,22 @@ projects: [claude-swarm]
 - Issue #${issue.number}: ${issue.title} (${issueType})
 - Verdict: ${verifyVerdict ?? 'N/A'}
 - PR: ${prUrl}
-- Duration: ${duration}
+- Duration: ${formatDuration(totalMs)}
 
 ### Decisions Made
-[List any architectural or approach decisions inferred from the phases — e.g. model choice, flow branching, retry strategy. If none evident, write "None recorded."]
+[List architectural or approach decisions from the phases. If none evident, write "None recorded."]
 
 ### Lessons Learned
-[Non-obvious insights from errors, retries, or unexpected phase behavior. Be specific — "X failed because Y" is more useful than "there was an error". If no issues, write "Run clean."]
+[Non-obvious insights from errors, retries, or unexpected behavior. Be specific. If clean run, write "Run clean."]
 
 ### Unresolved
-[Items needing follow-up: failed phases, partial verdicts, open questions. If none, write "None."]
+[Items needing follow-up. If none, write "None."]
 
-4. If you identified a reusable lesson or pattern (something that would help future runs), ALSO create a note:
+4. If a reusable lesson or pattern emerged, also create:
    File: ${vaultPath}/Notes/{descriptive-kebab-name}.md
-   Frontmatter: date, tags: [lesson, claude-swarm] (or [pattern, claude-swarm])
-   Body: the lesson/pattern with a [[${today}]] wikilink back to today's daily note.
-   Only create a Notes file if the lesson is genuinely reusable — skip if the run was routine.`;
+   Frontmatter: date, tags: [lesson, claude-swarm]
+   Body: lesson with [[${today}]] wikilink back to daily note.
+   Only create if genuinely reusable — skip if routine.`;
 }
 
 function formatDate(d: Date): string {

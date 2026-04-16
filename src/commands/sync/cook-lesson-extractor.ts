@@ -83,7 +83,7 @@ Respond with valid JSON only, no markdown.`;
 }
 
 /**
- * Write a brief task run summary to Review/Runs/ via shared note-writer.
+ * Write a brief task run summary to Runs/ via shared note-writer.
  * Best-effort — never throws.
  */
 async function writeTaskRunSummary(
@@ -114,7 +114,7 @@ async function writeTaskRunSummary(
 
 /**
  * Extract lessons from cook output and write to Knowledge/.
- * Also writes a task run summary to Review/Runs/.
+ * Also writes a task run summary to Runs/.
  * Best-effort — never throws, never blocks pipeline.
  */
 export async function extractLessonsFromCook(

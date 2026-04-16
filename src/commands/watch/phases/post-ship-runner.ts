@@ -117,7 +117,7 @@ Check plans/ for spec.md and plan.md. Write debrief.md to plans/reports/.${vault
  */
 async function isVaultTracePresent(vaultPath: string, issueNumber: number): Promise<boolean> {
   const today = new Date().toISOString().slice(0, 10);
-  const runFile   = join(vaultPath, 'Review', 'Runs', `${today}-issue-${issueNumber}.md`);
+  const runFile   = join(vaultPath, 'Runs', `${today}-issue-${issueNumber}.md`);
   const dailyFile = join(vaultPath, 'Daily', `${today}.md`);
   try {
     await Promise.all([access(runFile), access(dailyFile)]);

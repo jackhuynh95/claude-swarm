@@ -1,5 +1,5 @@
 /**
- * Run recorder — write structured run summaries to Review/Runs/ via shared note-writer.
+ * Run recorder — write structured run summaries to Runs/ via shared note-writer.
  * Supports append for retries on the same issue within a day.
  * Best-effort — never throws, never blocks the pipeline.
  */
@@ -14,7 +14,7 @@ export interface RunRecordConfig {
 }
 
 /**
- * Record a structured run summary to Review/Runs/.
+ * Record a structured run summary to Runs/.
  * First call per issue-day creates the file; subsequent calls append retry sections.
  */
 export async function recordRun(

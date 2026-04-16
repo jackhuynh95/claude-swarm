@@ -41,12 +41,12 @@ export interface NotePayload {
 
 const FOLDER_MAP: Record<NoteType, string> = {
   'daily':              'Daily',
-  'run-review':         'Review/Runs',
-  'task-run':           'Review/Runs',
+  'run-review':         'Runs',
+  'task-run':           'Runs',
   'knowledge-lesson':   'Knowledge/Lessons',
   'knowledge-pattern':  'Knowledge/Patterns',
   'knowledge-decision': 'Knowledge/Decisions',
-  'debrief':            'Review/Debriefs',
+  'debrief':            'Review',
   'raw-note':           'Notes',
 };
 

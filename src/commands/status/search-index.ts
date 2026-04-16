@@ -88,7 +88,7 @@ export function searchRuns(query: string, registry: TaskRegistry): SearchResult[
 
 /** Search markdown review files in the obsidian vault. */
 export function searchReviews(query: string, vaultPath: string): SearchResult[] {
-  const reviewDir = join(vaultPath, 'Review', 'Runs');
+  const reviewDir = join(vaultPath, 'Runs');
   if (!existsSync(reviewDir)) return [];
   const files = collectMdFiles(reviewDir);
   const results: SearchResult[] = [];
