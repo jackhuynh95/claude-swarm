@@ -201,10 +201,10 @@ claude -p "/ck:ship --beta" --model sonnet --max-turns 5
 # Plan
 claude -p "/ck:plan --fast @docs/implement-roadmap.md
   Implement Phase 7 (Obsidian Vault Integration).
-  Tasks: /obsidian-journal skill, wire journal-writer as post-ship phase,
+  Tasks: /2nd-brain:obsidian-journal skill, wire journal-writer as post-ship phase,
   context loading from vault before planning,
-  daily journal format, notes extraction with [[wikilinks]],
-  review/runs storage." \
+  daily journal format via skill, notes extraction with [[wikilinks]],
+  flat vault folders: Daily/, Notes/, Review/, Runs/, Knowledge/." \
   --model opus --effort high --max-turns 8
 
 # Execute
@@ -216,7 +216,7 @@ claude -p "/test" --model sonnet --effort low --max-turns 3
 claude -p "/ck:ship --official" --model sonnet --max-turns 5
 ```
 
-**Done when**: Watcher reads vault before planning, writes journal after completing.
+**Done when**: Watcher and builder both write vault traces (Daily/, Runs/, Review/, Knowledge/, Notes/) after completing; journal uses `/2nd-brain:obsidian-journal` skill.
 
 ---
 

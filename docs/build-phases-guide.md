@@ -113,10 +113,10 @@ Phase 6 adds:
 | 0+1 | Project structure, labels, CLAUDE.md, vault skeleton | package.json, tsconfig.json, obsidian-vault/ |
 | 2 | Issue router, model router | issue-router.ts, model-router.ts |
 | 3 | Debug flow, ship flow, subprocess spawning | debug-flow.ts, ship-flow.ts, clarifier.ts |
-| 4 | Verifier, E2E, Slack reporter, journal writer | verifier.ts, e2e-runner.ts, slack-reporter.ts, journal-writer.ts |
+| 4 | Verifier, E2E, Slack reporter, journal writer (skill-backed via /2nd-brain:obsidian-journal) | verifier.ts, e2e-runner.ts, slack-reporter.ts, journal-writer.ts |
 | 5 | Standalone CLI tools | slack-reader.ts, brainstormer.ts |
 | 6 | Safety filters, budget guards | safety-filter.ts, budget-guard.ts |
-| 7 | Obsidian journal skill, context loading | /obsidian-journal skill, vault read/write |
+| 7 | Obsidian journal skill, flat vault folders, context loading | /2nd-brain:obsidian-journal skill, vault read/write; folders: Daily/, Notes/, Review/, Runs/, Knowledge/ |
 | 8 | Status command, run history | status.ts, capability-matrix.md |
 
 ---

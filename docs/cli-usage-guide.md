@@ -145,8 +145,9 @@ Poll (every --interval ms)
   │       ├── E2E browser tests (if --base-url)
   │       ├── Design review (if "frontend" label)
   │       ├── Slack report
-  │       ├── Obsidian journal + lessons
+  │       ├── /ttw:debrief → journal via /2nd-brain:obsidian-journal → run recorder → knowledge extraction
   │       └── llms.txt generation
+  │   Vault traces: Daily/, Runs/, Review/, Knowledge/, Notes/
   │
   └── Rate limit: skip remaining if --max-per-hour reached
 ```
@@ -496,7 +497,7 @@ claude-swarm build from-scratch "Admin dashboard" --dry-run
 
 ### run
 
-Execute plan→cook→test→ship pipeline for epics.
+Execute plan→cook→test→ship pipeline for epics. After each task commit, builder runs debrief → lesson extraction → journal via `/2nd-brain:obsidian-journal` → knowledge extraction. Writes vault traces to `Daily/`, `Runs/`, `Review/`, `Knowledge/`, `Notes/`.
 
 ```bash
 claude-swarm build run --epic <n> [options]
@@ -627,10 +628,12 @@ claude-swarm build status --milestone "v2.1"
 **Spec-vs-Built Review.** Not a standalone CLI command — runs automatically as an internal pipeline step.
 
 Invoked as `/ttw:debrief` inside:
-- **Builder** (`build run`): step 3.5 after each task commit in `executeFromRoadmap()`
-- **Watcher** (`watch`): step 8 inside `executePostShip()` after design review
+- **Builder** (`build run`): after each task commit → debrief → lesson extraction from debrief → builder journal via `/2nd-brain:obsidian-journal` → knowledge extraction from recent notes
+- **Watcher** (`watch`): inside `executePostShip()` after design review → journal via `/2nd-brain:obsidian-journal` → run recorder → knowledge extraction
 
 Compares requested scope, clarified spec, generated plan, and built result. Writes `debrief.md` to `plans/reports/`. Output is consumed by journal and knowledge extraction downstream.
+
+Vault folder layout (flat): `Daily/`, `Notes/`, `Review/`, `Runs/`, `Knowledge/` (subfolder nesting within Knowledge/ remains).
 
 ---
 
