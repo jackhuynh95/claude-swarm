@@ -6,6 +6,7 @@ interface GrillMeOptions {
   context?: string;
   model?: string;
   planDir?: string;
+  auto?: boolean;
 }
 
 /**
@@ -14,10 +15,11 @@ interface GrillMeOptions {
  * message but keeps the session alive for multi-turn conversation.
  * stdio: 'inherit' gives the user full terminal control.
  */
-function spawnInteractiveSession(prompt: string, model: string): Promise<number> {
+function spawnInteractiveSession(prompt: string, model: string, auto?: boolean): Promise<number> {
   return new Promise((resolve, reject) => {
     // No -p flag — Claude starts in interactive mode with the prompt as first message
     const args = [prompt, '--model', model];
+    if (auto) args.push('--dangerously-skip-permissions');
 
     const proc = spawn('claude', args, {
       cwd: process.cwd(),
@@ -51,7 +53,7 @@ Ask 8-15 sharp questions, force decisions on major choices, consolidate answers,
 
   console.log(`Grilling: "${topic}"...`);
 
-  const code = await spawnInteractiveSession(prompt, modelOverride);
+  const code = await spawnInteractiveSession(prompt, modelOverride, options.auto);
   if (code !== 0) {
     process.exit(code);
   }
@@ -63,4 +65,5 @@ export const grillMeCommand = new Command('grill-me')
   .option('-c, --context <file>', 'Context file path (e.g. @docs/roadmap.md)')
   .option('-m, --model <model>', 'Model override (default: opus)')
   .option('-d, --plan-dir <dir>', 'Target plan directory for spec.md output')
+  .option('-a, --auto', 'Auto mode — skip permission prompts')
   .action(executeGrillMe);
