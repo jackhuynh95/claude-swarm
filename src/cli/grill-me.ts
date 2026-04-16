@@ -43,7 +43,9 @@ async function executeGrillMe(topic: string, options: GrillMeOptions): Promise<v
     ? `\nWrite spec.md to: ${options.planDir}/spec.md`
     : '';
 
-  const prompt = `/ttw:grill-me ${topic}${contextContent}${planDirHint}`;
+  const prompt = `/ttw:grill-me ${topic}${contextContent}${planDirHint}
+
+Ask 8-15 sharp questions, force decisions on major choices, consolidate answers, then write plans/<plan-dir>/spec.md and output the handoff command.`;
 
   const code = await spawnInteractiveSession(prompt, model);
   if (code !== 0) {
