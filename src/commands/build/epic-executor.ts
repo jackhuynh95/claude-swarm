@@ -427,13 +427,10 @@ export async function executeFromRoadmap(
 
     console.log(chalk.white(`\n  ► Task ${issue.id}: ${issue.title}`));
 
-    // Load vault context once per task — best-effort, never blocks pipeline
+    // Load vault context once per task — read-only, no lock needed
     let vaultCtx = '';
     try {
-      const pushAllowed = await acquireCycleLock(vaultPath, 'push');
-      if (pushAllowed) {
-        vaultCtx = await loadVaultContext(vaultPath, { title: issue.title });
-      }
+      vaultCtx = await loadVaultContext(vaultPath, { title: issue.title });
     } catch { /* swallow */ }
     const vaultSection = vaultCtx ? `\n\n${vaultCtx}` : '';
 
