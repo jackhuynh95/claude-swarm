@@ -9,9 +9,28 @@ export interface JournalConfig {
   cwd?: string;
 }
 
+/** Minimal issue info that journal-writer actually needs — satisfies both watcher and builder. */
+export interface JournalIssueContext {
+  number: number;
+  title: string;
+  type: string;          // issueType or "task"
+}
+
+/** Minimal step result for journal context — both PhaseResult and builder StepResult can map to this. */
+export interface JournalStepSummary {
+  phase: string;
+  success: boolean;
+  durationMs: number;
+  output?: string;
+  error?: string;
+  artifacts?: string[];
+}
+
 /**
  * Obsidian vault journal writer — best-effort, never blocks pipeline.
- * Delegates narrative to /obsidian-journal skill; falls back to inline prompt if unavailable.
+ * Delegates narrative to /2nd-brain:obsidian-journal skill; falls back to inline prompt if unavailable.
+ *
+ * Watcher entry point — wraps ClassifiedIssue + PhaseResult[] into the shared path.
  */
 export async function executeJournal(
   classified: ClassifiedIssue,
@@ -19,18 +38,60 @@ export async function executeJournal(
   flowResults: PhaseResult[],
   verifyVerdict?: VerifyVerdict,
 ): Promise<PhaseResult> {
+  const issueCtx: JournalIssueContext = {
+    number: classified.issue.number,
+    title: classified.issue.title,
+    type: classified.issueType,
+  };
+  const steps: JournalStepSummary[] = flowResults.map(r => ({
+    phase: r.phase,
+    success: r.success,
+    durationMs: r.durationMs,
+    output: r.output,
+    error: r.error,
+    artifacts: r.artifacts,
+  }));
+  return writeJournal(issueCtx, config, steps, verifyVerdict);
+}
+
+/**
+ * Builder entry point — accepts lightweight types without watcher dependencies.
+ * Best-effort, never blocks pipeline.
+ */
+export async function executeBuilderJournal(
+  issueCtx: JournalIssueContext,
+  config: JournalConfig,
+  steps: JournalStepSummary[],
+  verdict?: string,
+): Promise<void> {
   try {
-    const runContext = buildRunContext(classified, config.vaultPath, flowResults, verifyVerdict);
+    await writeJournal(issueCtx, config, steps, verdict);
+  } catch {
+    // Never block builder pipeline
+  }
+}
+
+/**
+ * Shared journal-writing core used by both watcher and builder.
+ */
+async function writeJournal(
+  issueCtx: JournalIssueContext,
+  config: JournalConfig,
+  steps: JournalStepSummary[],
+  verdict?: string,
+): Promise<PhaseResult> {
+  try {
+    const runContext = buildRunContext(issueCtx, config.vaultPath, steps, verdict);
 
     // Try skill-based narrative first
-    const skillPrompt = buildSkillPrompt(classified, config.vaultPath, runContext);
+    const skillPrompt = buildSkillPrompt(config.vaultPath, runContext);
     const result = await invokeClaudePhase(
       skillPrompt, 'journal', undefined, undefined, config.autoMode, config.cwd,
     );
 
     // If skill invocation failed (e.g. skill not installed), fall back to inline prompt
     if (!result.success) {
-      const fallbackPrompt = buildFallbackPrompt(classified, config.vaultPath, flowResults, verifyVerdict, runContext);
+      const fallbackPrompt = buildFallbackPrompt(issueCtx, config.vaultPath, steps, verdict, runContext);
       return await invokeClaudePhase(
         fallbackPrompt, 'journal', undefined, undefined, config.autoMode, config.cwd,
       );
@@ -38,7 +99,6 @@ export async function executeJournal(
 
     return result;
   } catch (err) {
-    // Never block pipeline
     return {
       phase: 'journal',
       success: false,
@@ -50,35 +110,34 @@ export async function executeJournal(
 
 /** Shared run context string used by both skill and fallback prompts. */
 function buildRunContext(
-  classified: ClassifiedIssue,
+  issueCtx: JournalIssueContext,
   vaultPath: string,
-  flowResults: PhaseResult[],
-  verifyVerdict?: VerifyVerdict,
+  steps: JournalStepSummary[],
+  verdict?: string,
 ): string {
-  const { issue, issueType } = classified;
   const today = formatDate(new Date());
-  const totalMs = flowResults.reduce((sum, r) => sum + r.durationMs, 0);
+  const totalMs = steps.reduce((sum, r) => sum + r.durationMs, 0);
 
-  const prUrl = flowResults
+  const prUrl = steps
     .flatMap((r) => r.artifacts ?? [])
     .find((a) => a.includes('pull')) ?? 'none';
 
-  const debriefOutput = flowResults.find(r => r.phase === 'debrief')?.output ?? '';
+  const debriefOutput = steps.find(r => r.phase === 'debrief')?.output ?? '';
   const debriefSection = debriefOutput
     ? `\nDebrief (spec vs built):\n${debriefOutput.slice(0, 2000)}`
     : '';
 
-  const failedPhases = flowResults
+  const failedPhases = steps
     .filter((r) => !r.success && r.error)
     .map((r) => `- ${r.phase}: ${r.error}`);
 
-  const phasesSummary = flowResults
+  const phasesSummary = steps
     .map((r) => `| ${r.phase} | ${r.success ? 'ok' : 'fail'} | ${formatDuration(r.durationMs)} | ${r.error ?? '—'} |`)
     .join('\n');
 
-  return `Issue: #${issue.number} — ${issue.title}
-Type: ${issueType}
-Verdict: ${verifyVerdict ?? 'N/A'}
+  return `Issue: #${issueCtx.number} — ${issueCtx.title}
+Type: ${issueCtx.type}
+Verdict: ${verdict ?? 'N/A'}
 PR: ${prUrl}
 Duration: ${formatDuration(totalMs)}
 Date: ${today}
@@ -96,11 +155,9 @@ ${debriefSection}`;
 
 /**
  * Skill-based prompt: delegates narrative writing to /2nd-brain:obsidian-journal.
- * The skill handles daily-note structure, frontmatter, wikilinks, and lesson extraction.
  * Vault path override tells the skill to write to the pipeline's vault, not the default project-local one.
  */
 function buildSkillPrompt(
-  classified: ClassifiedIssue,
   vaultPath: string,
   runContext: string,
 ): string {
@@ -116,22 +173,20 @@ Focus on: decisions made, lessons learned, unresolved items. Extract reusable le
 }
 
 /**
- * Fallback prompt when /obsidian-journal skill is unavailable.
- * Replicates the original inline journal-writing instructions.
+ * Fallback prompt when /2nd-brain:obsidian-journal skill is unavailable.
  */
 function buildFallbackPrompt(
-  classified: ClassifiedIssue,
+  issueCtx: JournalIssueContext,
   vaultPath: string,
-  flowResults: PhaseResult[],
-  verifyVerdict: VerifyVerdict | undefined,
+  steps: JournalStepSummary[],
+  verdict: string | undefined,
   runContext: string,
 ): string {
-  const { issue, issueType } = classified;
   const today = formatDate(new Date());
   const now = formatTime(new Date());
-  const totalMs = flowResults.reduce((sum, r) => sum + r.durationMs, 0);
+  const totalMs = steps.reduce((sum, r) => sum + r.durationMs, 0);
 
-  const prUrl = flowResults
+  const prUrl = steps
     .flatMap((r) => r.artifacts ?? [])
     .find((a) => a.includes('pull')) ?? 'none';
 
@@ -159,8 +214,8 @@ projects: [claude-swarm]
 ## Dev Session [N+1] — ${now}
 
 ### What Was Done
-- Issue #${issue.number}: ${issue.title} (${issueType})
-- Verdict: ${verifyVerdict ?? 'N/A'}
+- Issue #${issueCtx.number}: ${issueCtx.title} (${issueCtx.type})
+- Verdict: ${verdict ?? 'N/A'}
 - PR: ${prUrl}
 - Duration: ${formatDuration(totalMs)}
 

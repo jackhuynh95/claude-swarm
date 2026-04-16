@@ -7,6 +7,7 @@ import { getPhaseConfig } from '../watch/phases/model-router.js';
 import { loadProjectConfig } from '../../config-resolver.js';
 import { parseRoadmap, type Epic, type Issue } from './roadmap-parser.js';
 import { extractLessonsFromCook } from '../sync/cook-lesson-extractor.js';
+import { executeBuilderJournal, type JournalStepSummary } from '../watch/phases/journal-writer.js';
 import { loadVaultContext } from '../watch/phases/vault-context-loader.js';
 import { acquireCycleLock, releaseCycleLock } from '../sync/cycle-guard.js';
 import { extractFromRecentNotes } from '../sync/knowledge-extractor.js';
@@ -492,6 +493,25 @@ export async function executeFromRoadmap(
           await extractLessonsFromCook(debriefStdout, issue.id, issue.title, epic.title, roadmapPath, vaultPath);
         } catch { /* swallow */ }
       }
+
+      // Step 3.55: Journal — write Daily/ entry via /2nd-brain:obsidian-journal, best-effort
+      try {
+        const journalSteps: JournalStepSummary[] = [
+          { phase: 'cook', success: result.success, durationMs: result.durationMs, output: result.stdout.slice(0, 1000) },
+          { phase: 'commit', success: cmResult.success, durationMs: cmResult.durationMs },
+        ];
+        if (debriefStdout) {
+          journalSteps.push({ phase: 'debrief', success: true, durationMs: 0, output: debriefStdout.slice(0, 2000) });
+        }
+        const repo = execSync('gh repo view --json nameWithOwner -q .nameWithOwner', { encoding: 'utf-8' }).trim();
+        const taskNum = parseInt(issue.id, 10);
+        await executeBuilderJournal(
+          { number: isNaN(taskNum) ? 0 : taskNum, title: `${epic.title} — ${issue.title}`, type: 'task' },
+          { repo, autoMode: !!opts.auto, vaultPath },
+          journalSteps,
+          result.success ? 'PASS' : 'FAIL',
+        );
+      } catch { /* swallow — best-effort */ }
 
       // Step 3.6: Knowledge extraction from recent Notes/ — best-effort, never blocks pipeline
       try {
