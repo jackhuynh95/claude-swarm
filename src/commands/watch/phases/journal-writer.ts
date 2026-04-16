@@ -95,17 +95,19 @@ ${debriefSection}`;
 }
 
 /**
- * Skill-based prompt: delegates narrative writing to /obsidian-journal.
+ * Skill-based prompt: delegates narrative writing to /2nd-brain:obsidian-journal.
  * The skill handles daily-note structure, frontmatter, wikilinks, and lesson extraction.
+ * Vault path override tells the skill to write to the pipeline's vault, not the default project-local one.
  */
 function buildSkillPrompt(
   classified: ClassifiedIssue,
   vaultPath: string,
   runContext: string,
 ): string {
-  return `/obsidian-journal Write journal entry for automated pipeline run.
+  return `/2nd-brain:obsidian-journal Write journal entry for automated pipeline run.
 
-Vault path override: ${vaultPath}
+IMPORTANT: Use vault root "${vaultPath}" instead of the default "obsidian-vault/".
+Write daily note to: ${vaultPath}/Daily/
 Project: claude-swarm
 
 ${runContext}
