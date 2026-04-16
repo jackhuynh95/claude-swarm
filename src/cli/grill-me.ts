@@ -28,7 +28,7 @@ function spawnInteractiveSession(prompt: string, model: string): Promise<number>
 }
 
 async function executeGrillMe(topic: string, options: GrillMeOptions): Promise<void> {
-  const model = options.model ?? 'claude-opus-4-6';
+  const modelOverride = options.model ?? 'claude-opus-4-6';
 
   let contextContent = '';
   if (options.context) {
@@ -47,7 +47,9 @@ async function executeGrillMe(topic: string, options: GrillMeOptions): Promise<v
 
 Ask 8-15 sharp questions, force decisions on major choices, consolidate answers, then write plans/<plan-dir>/spec.md and output the handoff command.`;
 
-  const code = await spawnInteractiveSession(prompt, model);
+  console.log(`Grilling: "${topic}"...`);
+
+  const code = await spawnInteractiveSession(prompt, modelOverride);
   if (code !== 0) {
     process.exit(code);
   }
