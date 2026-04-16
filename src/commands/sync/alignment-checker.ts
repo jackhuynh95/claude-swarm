@@ -105,8 +105,6 @@ function stripDatePrefix(f: string): string { return f.replace(/^\d{4}-\d{2}-\d{
 interface PairInput { filename: string; projectContent: string; brainContent: string }
 
 async function analyzeDrift(pairs: PairInput[]): Promise<z.infer<typeof AlignmentBatchSchema>['results']> {
-  const apiKey = process.env['ANTHROPIC_API_KEY'];
-  if (!apiKey) { console.error('[alignment-checker] ANTHROPIC_API_KEY not set'); return []; }
 
   const notesText = pairs.map(p =>
     `=== Pair: ${p.filename} ===\n[PROJECT]\n${p.projectContent.slice(0, MAX_NOTE_CHARS)}\n[BRAIN]\n${p.brainContent.slice(0, MAX_NOTE_CHARS)}\n=== End Pair ===`
@@ -114,7 +112,7 @@ async function analyzeDrift(pairs: PairInput[]): Promise<z.infer<typeof Alignmen
 
   const attempt = async (msg: string) => {
     try {
-      const client = new Anthropic({ apiKey });
+      const client = new Anthropic();
       const resp = await client.messages.create({
         model: DEFAULT_MODEL, max_tokens: MAX_TOKENS, system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: msg }],

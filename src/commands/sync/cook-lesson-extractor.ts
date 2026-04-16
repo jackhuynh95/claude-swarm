@@ -23,9 +23,6 @@ async function extractLessonsWithHaiku(
   cookOutput: string,
   taskTitle: string,
 ): Promise<LessonObject[]> {
-  const apiKey = process.env['ANTHROPIC_API_KEY'];
-  if (!apiKey) return [];
-
   const truncated = cookOutput.slice(0, MAX_COOK_CHARS);
   const userMessage = `Task implemented: "${taskTitle}"
 
@@ -38,7 +35,7 @@ Respond with a JSON array of lesson objects (max 3):
 Respond with valid JSON only, no markdown.`;
 
   try {
-    const client = new Anthropic({ apiKey });
+    const client = new Anthropic();
 
     const response = await Promise.race([
       client.messages.create({

@@ -158,14 +158,8 @@ interface AttemptResult {
 }
 
 async function attemptClassification(model: string, userMessage: string): Promise<AttemptResult> {
-  const apiKey = process.env['ANTHROPIC_API_KEY'];
-  if (!apiKey) {
-    console.error('[note-classifier] ANTHROPIC_API_KEY is not set');
-    return { parsed: null, inputTokens: 0, outputTokens: 0 };
-  }
-
   try {
-    const client = new Anthropic({ apiKey });
+    const client = new Anthropic();
     const response = await client.messages.create({
       model,
       max_tokens: MAX_TOKENS,
