@@ -7,8 +7,9 @@
  *   - epic-table:  headings like `### Epic N —`
  *   - plan-table:  `## Phases` with `[title](phase-*.md)` links (plan.md wrapper)
  *   - phase-file:  a single `phase-*.md` file — treated as one runnable epic
- *                  with inner tasks from a task table, `## Todo` checklist,
- *                  or a synthesized single task from the phase title.
+ *                  with inner tasks from a task table, a todo-like checklist
+ *                  section (Todo/Tasks/Checklist/To-Do…), a global checkbox
+ *                  scan, or a synthesized single task from the phase title.
  */
 
 import { readFileSync } from 'fs';
@@ -323,12 +324,42 @@ function extractH2Section(content: string, name: string): string | null {
 }
 
 /**
+ * Extract top-level checklist items from a text body as Issues.
+ * Accepts `-`, `*`, `+` markers with up to 4 spaces/tabs of indent so that
+ * slight formatting variations in hand-written phase files still parse.
+ * Only lines whose marker is the FIRST non-whitespace content become tasks —
+ * narrative bullets that happen to contain `[x]` later in the line are skipped.
+ */
+function extractChecklistIssues(body: string): Issue[] {
+  const issues: Issue[] = [];
+  const checklistRe = /^[ \t]{0,4}[-*+]\s+\[([ xX])\]\s+(.+)$/gm;
+  let id = 1;
+  let m: RegExpExecArray | null;
+  while ((m = checklistRe.exec(body)) !== null) {
+    const itemTitle = m[2].trim();
+    if (!itemTitle) continue;
+    const checked = m[1].toLowerCase() === 'x';
+    issues.push(IssueSchema.parse({
+      id: String(id++),
+      title: itemTitle,
+      type: detectType(itemTitle),
+      status: checked ? 'Complete' : 'Pending',
+      subs: [],
+    }));
+  }
+  return issues;
+}
+
+/**
  * Parse a single phase-*.md file into one runnable epic.
  *
  * Task extraction priority (first match wins):
  *   1. Numeric task table (reuses parseTable's `isTaskTable` heuristic)
- *   2. Checklist items under `## Todo` / `## Todo List`
- *   3. Synthesized single task from the phase's H1 title
+ *   2. Checklist items under a todo-like H2 section
+ *      (`## Todo`, `## Todos`, `## Todo List`, `## Tasks`, `## Task List`,
+ *      `## Checklist`, `## To-Do`)
+ *   3. Global top-level checkbox scan (mirrors `build status --plan`)
+ *   4. Synthesized single task from the phase's H1 title
  *
  * `--from-task N` filtering stays scoped to this phase file's tasks.
  */
@@ -346,30 +377,30 @@ function parsePhaseFile(content: string): Epic[] {
     return [EpicSchema.parse({ title, issues: tableIssues })];
   }
 
-  // 2. Checklist items under `## Todo` (or `## Todo List`)
-  const todoBody = extractH2Section(stripped, 'Todo(?:\\s+List)?');
+  // 2. Checklist items under a todo-like section heading.
+  //    Accepts: Todo, Todos, Todo List, Task, Tasks, Task List, Checklist, To-Do.
+  //    Item markers: `-`, `*`, or `+`, with up to 4 spaces/tabs of leading indent.
+  //    Kept in sync with `build status --plan` global checkbox counting so
+  //    status and run agree on task counts for phase files.
+  const todoHeading = '(?:Todos?(?:\\s+List)?|Tasks?(?:\\s+List)?|Checklist|To-?Do)';
+  const todoBody = extractH2Section(stripped, todoHeading);
   if (todoBody) {
-    const issues: Issue[] = [];
-    let id = 1;
-    const checklistRe = /^- \[([ xX])\]\s+(.+)$/gm;
-    let m: RegExpExecArray | null;
-    while ((m = checklistRe.exec(todoBody)) !== null) {
-      const itemTitle = m[2].trim();
-      const checked = m[1].toLowerCase() === 'x';
-      issues.push(IssueSchema.parse({
-        id: String(id++),
-        title: itemTitle,
-        type: detectType(itemTitle),
-        status: checked ? 'Complete' : 'Pending',
-        subs: [],
-      }));
-    }
+    const issues = extractChecklistIssues(todoBody);
     if (issues.length > 0) {
       return [EpicSchema.parse({ title, issues })];
     }
   }
 
-  // 3. Synthesize single task from phase title
+  // 3. Global fallback: scan the entire file for top-level checklist items.
+  //    Matches `build status --plan` behavior so per-phase task counts agree
+  //    between `status` and `run`. Triggers only when the narrower Todo section
+  //    extraction found nothing (custom heading, missing section, etc.).
+  const globalIssues = extractChecklistIssues(stripped);
+  if (globalIssues.length > 0) {
+    return [EpicSchema.parse({ title, issues: globalIssues })];
+  }
+
+  // 4. Synthesize single task from phase title
   const synth = IssueSchema.parse({
     id: '1',
     title,
