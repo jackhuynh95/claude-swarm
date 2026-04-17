@@ -181,11 +181,23 @@ export function renderPlanStatus(planPath: string): void {
     phase.todosTotal = file.total;
   }
 
-  // Resolve effective status: prefer table status (most visible), fall back to file status
-  const effectiveStatus = (p: PhaseEntry): string => p.tableStatus || p.fileStatus || 'unknown';
+  // Derive label from actual todo progress when todos exist; otherwise fall back
+  // to recorded status. This prevents a phase with unchecked todos (e.g. 8/10)
+  // from being labeled `[Complete]` just because the plan.md table or YAML
+  // frontmatter says so.
+  //   total === 0              → recorded status (table, then file, then "unknown")
+  //   done === total (>0)      → Complete
+  //   done === 0, total > 0    → Pending
+  //   0 < done < total         → In Progress
+  const deriveStatus = (p: PhaseEntry): string => {
+    if (p.todosTotal === 0) return p.tableStatus || p.fileStatus || 'unknown';
+    if (p.todosDone >= p.todosTotal) return 'Complete';
+    if (p.todosDone === 0) return 'Pending';
+    return 'In Progress';
+  };
 
   // Summary counts
-  const completedCount = phases.filter(p => isComplete(effectiveStatus(p))).length;
+  const completedCount = phases.filter(p => isComplete(deriveStatus(p))).length;
   const totalDone = phases.reduce((s, p) => s + p.todosDone, 0);
   const totalTodos = phases.reduce((s, p) => s + p.todosTotal, 0);
 
@@ -204,7 +216,7 @@ export function renderPlanStatus(planPath: string): void {
 
   // Per-phase rows
   for (const phase of phases) {
-    const status = effectiveStatus(phase);
+    const status = deriveStatus(phase);
     const badge = statusBadge(status);
     console.log(chalk.white(`  Phase ${phase.phaseNum}: ${phase.title}`) + '  ' + badge);
     if (phase.todosTotal > 0) {
