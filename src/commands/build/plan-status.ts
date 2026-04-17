@@ -160,7 +160,7 @@ export function isPhaseFileComplete(filePath: string): boolean {
 }
 
 /** Read plan.md at planPath and render per-phase status + todo progress. */
-export function renderPlanStatus(planPath: string): void {
+export function renderPlanStatus(planPath: string, remaining?: boolean): void {
   let planContent: string;
   try {
     planContent = readFileSync(planPath, 'utf-8');
@@ -199,6 +199,24 @@ export function renderPlanStatus(planPath: string): void {
     phase.todosTotal = file.total;
   }
 
+  // --remaining: filter out fully complete phases (plan.md root mode only)
+  // For direct phase-*.md inputs this is a no-op since `phases` won't be populated from a table.
+  const visiblePhases = remaining
+    ? phases.filter(p => !isPhaseFileComplete(p.filePath))
+    : phases;
+
+  if (remaining && visiblePhases.length === 0) {
+    const titleLine = `  Plan: ${planTitle}`;
+    const width = Math.max(titleLine.length, 60);
+    const border = '═'.repeat(width);
+    console.log(chalk.cyan(`╔${border}╗`));
+    console.log(chalk.cyan('║') + chalk.bold(titleLine.padEnd(width)) + chalk.cyan('║'));
+    console.log(chalk.cyan(`╚${border}╝`));
+    console.log('');
+    console.log(chalk.green('  All phases complete — nothing remaining.'));
+    return;
+  }
+
   // Derive label from actual todo progress when todos exist; otherwise fall back
   // to recorded status. This prevents a phase with unchecked todos (e.g. 8/10)
   // from being labeled `[Complete]` just because the plan.md table or YAML
@@ -214,16 +232,19 @@ export function renderPlanStatus(planPath: string): void {
     return 'In Progress';
   };
 
-  // Summary counts
-  const completedCount = phases.filter(p => isComplete(deriveStatus(p))).length;
-  const totalDone = phases.reduce((s, p) => s + p.todosDone, 0);
-  const totalTodos = phases.reduce((s, p) => s + p.todosTotal, 0);
+  // Summary counts (scoped to visible phases only)
+  const completedCount = visiblePhases.filter(p => isComplete(deriveStatus(p))).length;
+  const totalDone = visiblePhases.reduce((s, p) => s + p.todosDone, 0);
+  const totalTodos = visiblePhases.reduce((s, p) => s + p.todosTotal, 0);
 
   // Header box
   const titleLine = `  Plan: ${planTitle}`;
+  const phaseCountLabel = remaining
+    ? `${visiblePhases.length} remaining`
+    : `${completedCount}/${phases.length} complete`;
   const phaseLine = totalTodos > 0
-    ? `  Phases: ${completedCount}/${phases.length} complete  |  Tasks: ${progressBar(totalDone, totalTodos)}`
-    : `  Phases: ${completedCount}/${phases.length} complete`;
+    ? `  Phases: ${phaseCountLabel}  |  Tasks: ${progressBar(totalDone, totalTodos)}`
+    : `  Phases: ${phaseCountLabel}`;
   const width = Math.max(titleLine.length, phaseLine.length, 60);
   const border = '═'.repeat(width);
   console.log(chalk.cyan(`╔${border}╗`));
@@ -233,7 +254,7 @@ export function renderPlanStatus(planPath: string): void {
   console.log('');
 
   // Per-phase rows
-  for (const phase of phases) {
+  for (const phase of visiblePhases) {
     const status = deriveStatus(phase);
     const badge = statusBadge(status);
     console.log(chalk.white(`  Phase ${phase.phaseNum}: ${phase.title}`) + '  ' + badge);

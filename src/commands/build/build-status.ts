@@ -310,10 +310,10 @@ async function renderCostSummary(): Promise<void> {
 
 // ─── Public API ────────────────────────────────────────────────────────────────
 
-export async function showBuildStatus(options?: { milestone?: string; plan?: string }): Promise<void> {
+export async function showBuildStatus(options?: { milestone?: string; plan?: string; remaining?: boolean }): Promise<void> {
   // Plan-file mode: read plan.md directly, no GitHub needed
   if (options?.plan) {
-    renderPlanStatus(options.plan);
+    renderPlanStatus(options.plan, options.remaining);
     return;
   }
 

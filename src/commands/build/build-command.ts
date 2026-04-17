@@ -190,7 +190,8 @@ buildCommand
   .description('Show build progress — from a local plan.md file or GitHub milestone/epic hierarchy')
   .option('--milestone <name>', 'Filter by milestone name (GitHub mode)')
   .option('--plan <path>', 'Read a local plan.md file for phase-level progress (@path supported, no GitHub needed)')
+  .option('--remaining', 'Hide fully complete phases (plan.md root mode only)')
   .action(async (opts) => {
     const plan = opts.plan ? opts.plan.replace(/^@/, '') : undefined;
-    await showBuildStatus({ milestone: opts.milestone, plan });
+    await showBuildStatus({ milestone: opts.milestone, plan, remaining: opts.remaining });
   });
