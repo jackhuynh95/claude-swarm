@@ -329,8 +329,19 @@ function extractH2Section(content: string, name: string): string | null {
  * slight formatting variations in hand-written phase files still parse.
  * Only lines whose marker is the FIRST non-whitespace content become tasks —
  * narrative bullets that happen to contain `[x]` later in the line are skipped.
+ *
+ * By default, checked items (`- [x]`) are excluded so that the returned set
+ * represents remaining work only. Pass `includeChecked: true` to keep them
+ * (used when the full checklist — checked + unchecked — is needed).
+ *
+ * IDs are assigned sequentially 1..N over the returned items, so after
+ * filtering out checked items the unchecked items get stable, monotonic IDs
+ * that `--from-task N` can refine against.
  */
-function extractChecklistIssues(body: string): Issue[] {
+function extractChecklistIssues(
+  body: string,
+  options: { includeChecked?: boolean } = {},
+): Issue[] {
   const issues: Issue[] = [];
   const checklistRe = /^[ \t]{0,4}[-*+]\s+\[([ xX])\]\s+(.+)$/gm;
   let id = 1;
@@ -339,6 +350,7 @@ function extractChecklistIssues(body: string): Issue[] {
     const itemTitle = m[2].trim();
     if (!itemTitle) continue;
     const checked = m[1].toLowerCase() === 'x';
+    if (checked && !options.includeChecked) continue;
     issues.push(IssueSchema.parse({
       id: String(id++),
       title: itemTitle,
@@ -353,15 +365,26 @@ function extractChecklistIssues(body: string): Issue[] {
 /**
  * Parse a single phase-*.md file into one runnable epic.
  *
- * Task extraction priority (first match wins):
- *   1. Numeric task table (reuses parseTable's `isTaskTable` heuristic)
- *   2. Checklist items under a todo-like H2 section
- *      (`## Todo`, `## Todos`, `## Todo List`, `## Tasks`, `## Task List`,
- *      `## Checklist`, `## To-Do`)
- *   3. Global top-level checkbox scan (mirrors `build status --plan`)
- *   4. Synthesized single task from the phase's H1 title
+ * Direct phase-file execution focuses on REMAINING WORK. Checked items are
+ * excluded automatically; unchecked items are the runnable tasks by default.
+ * `--from-task N` is optional refinement inside that unchecked set.
  *
- * `--from-task N` filtering stays scoped to this phase file's tasks.
+ * Task extraction priority (first non-empty match wins):
+ *   1. Unchecked checklist items under a todo-like H2 section
+ *      (`## Todo`, `## Todos`, `## Todo List`, `## Tasks`, `## Task List`,
+ *      `## Checklist`, `## To-Do`). If the Todo section exists we commit
+ *      to it — including the zero-remaining case, which yields an empty
+ *      runnable set (nothing to do, by design).
+ *   2. Unchecked checklist items from a global top-level checkbox scan
+ *      (fallback for phase files with no Todo section but scattered
+ *      `- [ ]` items elsewhere).
+ *   3. Numeric task table (reuses parseTable's `isTaskTable` heuristic) —
+ *      used only when no checklist exists at all. Descriptive file tables
+ *      are documentation, not the primary execution source.
+ *   4. Synthesized single task from the phase's H1 title.
+ *
+ * This mirrors `build status --plan` remaining-work intent and keeps
+ * `build run` aligned with what the user sees as "left to do".
  */
 function parsePhaseFile(content: string): Epic[] {
   const h1 = content.match(/^#\s+(.+)/m);
@@ -370,34 +393,32 @@ function parsePhaseFile(content: string): Epic[] {
   // Strip code fences to avoid parsing tables/checklists inside code samples
   const stripped = content.replace(/```[\s\S]*?```/g, '');
 
-  // 1. Numeric task table
+  // 1. Todo-section checklist — unchecked items only.
+  //    Accepts headings: Todo, Todos, Todo List, Task, Tasks, Task List,
+  //    Checklist, To-Do. Item markers `-`/`*`/`+` with up to 4 spaces/tabs
+  //    indent. If the Todo section is present, commit to it even when all
+  //    items are checked (empty remaining set = nothing to run — correct).
+  const todoHeading = '(?:Todos?(?:\\s+List)?|Tasks?(?:\\s+List)?|Checklist|To-?Do)';
+  const todoBody = extractH2Section(stripped, todoHeading);
+  if (todoBody !== null) {
+    const issues = extractChecklistIssues(todoBody);
+    return [EpicSchema.parse({ title, issues })];
+  }
+
+  // 2. Global fallback: scan entire file for top-level unchecked checklist
+  //    items. Triggers only when no Todo-like section exists.
+  const globalIssues = extractChecklistIssues(stripped);
+  if (globalIssues.length > 0) {
+    return [EpicSchema.parse({ title, issues: globalIssues })];
+  }
+
+  // 3. Numeric task table — last-resort source, only when no checklist exists
+  //    at all. File-inventory / decision-log style tables should never
+  //    outrank remaining-work checklists.
   const tableMatches = stripped.match(/(\|.+\n)+/g) ?? [];
   const tableIssues = tableMatches.flatMap(t => parseTable(t));
   if (tableIssues.length > 0) {
     return [EpicSchema.parse({ title, issues: tableIssues })];
-  }
-
-  // 2. Checklist items under a todo-like section heading.
-  //    Accepts: Todo, Todos, Todo List, Task, Tasks, Task List, Checklist, To-Do.
-  //    Item markers: `-`, `*`, or `+`, with up to 4 spaces/tabs of leading indent.
-  //    Kept in sync with `build status --plan` global checkbox counting so
-  //    status and run agree on task counts for phase files.
-  const todoHeading = '(?:Todos?(?:\\s+List)?|Tasks?(?:\\s+List)?|Checklist|To-?Do)';
-  const todoBody = extractH2Section(stripped, todoHeading);
-  if (todoBody) {
-    const issues = extractChecklistIssues(todoBody);
-    if (issues.length > 0) {
-      return [EpicSchema.parse({ title, issues })];
-    }
-  }
-
-  // 3. Global fallback: scan the entire file for top-level checklist items.
-  //    Matches `build status --plan` behavior so per-phase task counts agree
-  //    between `status` and `run`. Triggers only when the narrower Todo section
-  //    extraction found nothing (custom heading, missing section, etc.).
-  const globalIssues = extractChecklistIssues(stripped);
-  if (globalIssues.length > 0) {
-    return [EpicSchema.parse({ title, issues: globalIssues })];
   }
 
   // 4. Synthesize single task from phase title
