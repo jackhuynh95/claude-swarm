@@ -91,6 +91,7 @@ buildCommand
   .option('--all', 'Run all phases (roadmap) or all epics (deprecated)')
   .option('--from <n>', 'Resume from phase/epic number N', parseInt)
   .option('--from-task <n>', 'Skip tasks with ID < N within a phase', parseInt)
+  .option('--remaining', 'Skip fully complete linked phase files (plan.md only)')
   .option('--fast', 'Skip /ck:plan step, go straight to /ck:cook (default: plan first)')
   .option('--hard', 'Deep analysis: plan red-team + predict per task')
   .option('--auto', 'Enable auto mode for all claude calls')
@@ -115,6 +116,7 @@ buildCommand
       fromEpic:       opts.from,
       model:          opts.model,
       effort:         opts.effort,
+      remaining:      opts.remaining,
     };
     if (opts.roadmap) {
       // Roadmap mode: --phase N for single phase, --all for all phases

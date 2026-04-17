@@ -6,6 +6,7 @@ import { createPullRequest } from '../watch/phases/branch-manager.js';
 import { getPhaseConfig } from '../watch/phases/model-router.js';
 import { loadProjectConfig } from '../../config-resolver.js';
 import { parseRoadmap, type Epic, type Issue } from './roadmap-parser.js';
+import { isPhaseFileComplete } from './plan-status.js';
 import { extractLessonsFromCook } from '../sync/cook-lesson-extractor.js';
 import { executeBuilderJournal, type JournalStepSummary } from '../watch/phases/journal-writer.js';
 import { loadVaultContext } from '../watch/phases/vault-context-loader.js';
@@ -51,6 +52,7 @@ export interface ExecutorOptions {
   model?:          string;          // CLI --model override (applies to all steps)
   effort?:         string;          // CLI --effort override (applies to all steps)
   vaultPath?:      string;          // obsidian vault path for lesson capture (default: cwd/obsidian-vault)
+  remaining?:      boolean;         // --remaining: plan.md mode only — skip fully complete linked phase files
 }
 
 interface StepResult {
@@ -383,6 +385,22 @@ export async function executeFromRoadmap(
   // Filter by --from-task (skip tasks with ID < N)
   if (opts.fromIssue) {
     tasks = tasks.filter(t => parseInt(t.issue.id, 10) >= opts.fromIssue!);
+  }
+
+  // Filter by --remaining: plan.md mode only (issues carry sourceFile). Skip
+  // phases whose linked phase-*.md is fully complete. Other modes: no-op —
+  // issues without sourceFile are kept unchanged.
+  if (opts.remaining) {
+    const before = tasks.length;
+    tasks = tasks.filter(t => !t.issue.sourceFile || !isPhaseFileComplete(t.issue.sourceFile));
+    const skipped = before - tasks.length;
+    if (skipped > 0) {
+      console.log(chalk.dim(`  ⟶ --remaining: skipped ${skipped} complete phase(s)`));
+    }
+    if (tasks.length === 0) {
+      console.log(chalk.green('\n✓ Nothing to run — all phases complete.'));
+      return;
+    }
   }
 
   const configModels = loadProjectConfig().models;

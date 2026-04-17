@@ -26,6 +26,9 @@ const IssueSchema = z.object({
   type: z.enum(['feature', 'bug', 'docs', 'chore', 'unknown']).default('feature'),
   status: z.string().default('Pending'),
   subs: z.array(SubIssueSchema).default([]),
+  // Absolute path to the source phase file — set only by parsePlan(). Enables
+  // --remaining to consult per-phase completion without re-parsing plan.md.
+  sourceFile: z.string().optional(),
 });
 
 const EpicSchema = z.object({
@@ -293,6 +296,7 @@ function parsePlan(content: string, planDir: string): Epic[] {
       type: detectType(title),
       status: 'Pending',
       subs,
+      sourceFile: phaseFilePath,
     }));
   }
 

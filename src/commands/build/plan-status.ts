@@ -141,6 +141,24 @@ function isComplete(status: string): boolean {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+/**
+ * Determine whether a single phase-*.md file is fully complete.
+ *
+ * Rules (mirror renderPlanStatus deriveStatus + isComplete):
+ *   - total > 0 && done >= total              → complete
+ *   - total === 0 && frontmatter status matches complete pattern → complete
+ *   - otherwise (including unknown / missing) → NOT complete
+ *
+ * Safer default: unknown ≠ complete, so --remaining keeps phases that lack
+ * both checklist items and an explicit complete status.
+ */
+export function isPhaseFileComplete(filePath: string): boolean {
+  const { status, done, total } = readPhaseFile(filePath);
+  if (total > 0) return done >= total;
+  if (!status) return false;
+  return isComplete(status);
+}
+
 /** Read plan.md at planPath and render per-phase status + todo progress. */
 export function renderPlanStatus(planPath: string): void {
   let planContent: string;
