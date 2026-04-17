@@ -7,6 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { captureKnowledge } from './knowledge-writer.js';
 import type { KnowledgeMetadata } from './knowledge-writer.js';
 import { writeNote } from './obsidian-note-writer.js';
+import { hasAnthropicEnvAuth, warnAuthUnavailableOnce } from './anthropic-auth-guard.js';
 
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_COOK_CHARS = 3000;
@@ -23,6 +24,13 @@ async function extractLessonsWithHaiku(
   cookOutput: string,
   taskTitle: string,
 ): Promise<LessonObject[]> {
+  // Skip haiku extraction cleanly when env auth is absent — avoids leaking
+  // SDK auth errors from a best-effort post-task path.
+  if (!hasAnthropicEnvAuth()) {
+    warnAuthUnavailableOnce('cook-lesson-extractor', 'cook-output lesson extraction');
+    return [];
+  }
+
   const truncated = cookOutput.slice(0, MAX_COOK_CHARS);
   const userMessage = `Task implemented: "${taskTitle}"
 

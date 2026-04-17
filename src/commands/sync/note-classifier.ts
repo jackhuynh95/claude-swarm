@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
+import { hasAnthropicEnvAuth, warnAuthUnavailableOnce } from './anthropic-auth-guard.js';
 
 // --- Zod schemas for response validation ---
 
@@ -75,6 +76,13 @@ export async function classifyNotes(
   opts: ClassifierOptions = {},
 ): Promise<ClassificationResult> {
   if (notes.length === 0) {
+    return { classifications: [], model: opts.model ?? DEFAULT_MODEL, inputTokens: 0, outputTokens: 0 };
+  }
+
+  // Short-circuit if env auth is unavailable — prevents repeated SDK stack traces
+  // and makes the data-loss explicit in a single log line per process.
+  if (!hasAnthropicEnvAuth()) {
+    warnAuthUnavailableOnce('note-classifier', 'vault note classification');
     return { classifications: [], model: opts.model ?? DEFAULT_MODEL, inputTokens: 0, outputTokens: 0 };
   }
 

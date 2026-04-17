@@ -4,6 +4,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import type { NoteInput } from './note-classifier.js';
+import { hasAnthropicEnvAuth, warnAuthUnavailableOnce } from './anthropic-auth-guard.js';
 
 // --- Zod schemas ---
 
@@ -72,6 +73,13 @@ export async function filterByRelevance(
   const model = opts.model ?? DEFAULT_MODEL;
 
   if (notes.length === 0) {
+    return { results: [], model, inputTokens: 0, outputTokens: 0 };
+  }
+
+  // Short-circuit if env auth is unavailable — preserves non-blocking behavior
+  // and emits a single informational log instead of a retry-doubled stack trace.
+  if (!hasAnthropicEnvAuth()) {
+    warnAuthUnavailableOnce('relevance-filter', 'vault note relevance filtering');
     return { results: [], model, inputTokens: 0, outputTokens: 0 };
   }
 

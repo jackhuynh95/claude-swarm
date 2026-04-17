@@ -7,6 +7,7 @@ import { readdir, readFile, writeFile, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { parseFrontmatter, mergeFrontmatter } from './frontmatter-parser.js';
+import { hasAnthropicEnvAuth, warnAuthUnavailableOnce } from './anthropic-auth-guard.js';
 
 // --- Types ---
 
@@ -105,6 +106,14 @@ function stripDatePrefix(f: string): string { return f.replace(/^\d{4}-\d{2}-\d{
 interface PairInput { filename: string; projectContent: string; brainContent: string }
 
 async function analyzeDrift(pairs: PairInput[]): Promise<z.infer<typeof AlignmentBatchSchema>['results']> {
+
+  // Skip drift analysis cleanly when env auth is absent — preserves
+  // non-blocking behavior of checkAlignment (caller treats [] as "no drift
+  // detectable", which is accurate and honest).
+  if (!hasAnthropicEnvAuth()) {
+    warnAuthUnavailableOnce('alignment-checker', 'vault drift analysis');
+    return [];
+  }
 
   const notesText = pairs.map(p =>
     `=== Pair: ${p.filename} ===\n[PROJECT]\n${p.projectContent.slice(0, MAX_NOTE_CHARS)}\n[BRAIN]\n${p.brainContent.slice(0, MAX_NOTE_CHARS)}\n=== End Pair ===`
