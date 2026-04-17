@@ -1,15 +1,18 @@
 /**
- * Roadmap Parser — reads implement-roadmap-*.md or plan.md files and extracts a
- * hierarchy: milestone > epics > issues > sub-issues.
+ * Roadmap Parser — reads implement-roadmap-*.md, plan.md, or phase-*.md files
+ * and extracts a hierarchy: milestone > epics > issues > sub-issues.
  *
- * Supports three formats:
+ * Supports four formats:
  *   - phase-table: headings like `## Phase N —` (roadmap docs)
  *   - epic-table:  headings like `### Epic N —`
- *   - plan-table:  `## Phases` with `[title](phase-*.md)` links (plan.md from /ck:plan)
+ *   - plan-table:  `## Phases` with `[title](phase-*.md)` links (plan.md wrapper)
+ *   - phase-file:  a single `phase-*.md` file — treated as one runnable epic
+ *                  with inner tasks from a task table, `## Todo` checklist,
+ *                  or a synthesized single task from the phase title.
  */
 
 import { readFileSync } from 'fs';
-import { dirname, join } from 'path';
+import { basename, dirname, join } from 'path';
 import { z } from 'zod';
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
@@ -43,20 +46,28 @@ export type Roadmap = z.infer<typeof RoadmapSchema>;
 
 /**
  * Detect format:
- * - 'phase': `## Phase N —` headings (roadmap macro)
- * - 'epic':  `### Epic N —` headings
- * - 'plan':  `## Phases` (singular) with linked phase-*.md files (plan.md = 1 phase of roadmap)
+ * - 'epic':       `### Epic N —` headings
+ * - 'plan':       `## Phases` (singular) with linked phase-*.md files (plan.md wrapper)
+ * - 'phase-file': single `phase-*.md` file (filename-based detection)
+ * - 'phase':      `## Phase N —` headings (roadmap macro)
+ *
+ * Check order matters: epic > plan > phase-file > phase. Plan.md is detected
+ * before phase-file so a `phase-NN` slug in a plan.md dir doesn't misfire.
  */
-function detectFormat(content: string): 'phase' | 'epic' | 'plan' {
+function detectFormat(content: string, filePath: string): 'phase' | 'epic' | 'plan' | 'phase-file' {
   const hasEpicHeadings = /^###\s+Epic\s+\d+/m.test(content);
   if (hasEpicHeadings) return 'epic';
 
-  const hasPhaseHeadings = /^##\s+Phase\s+\d+/m.test(content);
-  if (hasPhaseHeadings) return 'phase';
-
-  // plan.md: has `## Phases` with markdown links to phase-*.md files
+  // plan.md wrapper: `## Phases` with markdown links to phase-*.md files
   const hasPhasesTable = /^##\s+Phases?\s*$/m.test(content) && /\]\(phase-\d+/m.test(content);
   if (hasPhasesTable) return 'plan';
+
+  // Single phase file: filename matches `phase-\d+...\.md`
+  const fileName = basename(filePath);
+  if (/^phase-\d+[^/\\]*\.md$/i.test(fileName)) return 'phase-file';
+
+  const hasPhaseHeadings = /^##\s+Phase\s+\d+/m.test(content);
+  if (hasPhaseHeadings) return 'phase';
 
   return 'phase';
 }
@@ -290,11 +301,91 @@ function parsePlan(content: string, planDir: string): Epic[] {
   return [EpicSchema.parse({ title: milestone, issues })];
 }
 
+// ─── Phase-file Parsing (single phase-*.md as a runnable epic) ───────────────
+
+/**
+ * Extract the body of a top-level `## <name>` section. Returns null if not found.
+ * Reads until the next `^## ` heading or end-of-file.
+ */
+function extractH2Section(content: string, name: string): string | null {
+  const lines = content.split('\n');
+  const startRe = new RegExp(`^##\\s+${name}\\s*$`, 'i');
+  let inside = false;
+  const body: string[] = [];
+  for (const line of lines) {
+    if (/^##\s+/.test(line)) {
+      if (inside) break;
+      if (startRe.test(line)) { inside = true; continue; }
+    }
+    if (inside) body.push(line);
+  }
+  return inside ? body.join('\n') : null;
+}
+
+/**
+ * Parse a single phase-*.md file into one runnable epic.
+ *
+ * Task extraction priority (first match wins):
+ *   1. Numeric task table (reuses parseTable's `isTaskTable` heuristic)
+ *   2. Checklist items under `## Todo` / `## Todo List`
+ *   3. Synthesized single task from the phase's H1 title
+ *
+ * `--from-task N` filtering stays scoped to this phase file's tasks.
+ */
+function parsePhaseFile(content: string): Epic[] {
+  const h1 = content.match(/^#\s+(.+)/m);
+  const title = h1 ? h1[1].trim() : 'Phase';
+
+  // Strip code fences to avoid parsing tables/checklists inside code samples
+  const stripped = content.replace(/```[\s\S]*?```/g, '');
+
+  // 1. Numeric task table
+  const tableMatches = stripped.match(/(\|.+\n)+/g) ?? [];
+  const tableIssues = tableMatches.flatMap(t => parseTable(t));
+  if (tableIssues.length > 0) {
+    return [EpicSchema.parse({ title, issues: tableIssues })];
+  }
+
+  // 2. Checklist items under `## Todo` (or `## Todo List`)
+  const todoBody = extractH2Section(stripped, 'Todo(?:\\s+List)?');
+  if (todoBody) {
+    const issues: Issue[] = [];
+    let id = 1;
+    const checklistRe = /^- \[([ xX])\]\s+(.+)$/gm;
+    let m: RegExpExecArray | null;
+    while ((m = checklistRe.exec(todoBody)) !== null) {
+      const itemTitle = m[2].trim();
+      const checked = m[1].toLowerCase() === 'x';
+      issues.push(IssueSchema.parse({
+        id: String(id++),
+        title: itemTitle,
+        type: detectType(itemTitle),
+        status: checked ? 'Complete' : 'Pending',
+        subs: [],
+      }));
+    }
+    if (issues.length > 0) {
+      return [EpicSchema.parse({ title, issues })];
+    }
+  }
+
+  // 3. Synthesize single task from phase title
+  const synth = IssueSchema.parse({
+    id: '1',
+    title,
+    type: detectType(title),
+    status: 'Pending',
+    subs: [],
+  });
+  return [EpicSchema.parse({ title, issues: [synth] })];
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Parse a roadmap or plan.md file into a validated Roadmap structure.
- * Supports: phase-table (roadmap), epic-table, and plan-table (plan.md) formats.
+ * Parse a roadmap, plan.md, or phase-*.md file into a validated Roadmap.
+ * Supports: phase-table (roadmap doc), epic-table, plan-table (plan.md wrapper),
+ * and phase-file (single phase-*.md as one runnable epic).
  */
 export function parseRoadmap(filePath: string): Roadmap {
   let content: string;
@@ -304,12 +395,17 @@ export function parseRoadmap(filePath: string): Roadmap {
     throw new Error(`Failed to read roadmap file "${filePath}": ${(err as Error).message}`);
   }
 
-  const format = detectFormat(content);
+  const format = detectFormat(content, filePath);
   const milestone = parseMilestone(content);
 
-  const epics = format === 'plan'
-    ? parsePlan(content, dirname(filePath))
-    : parseEpics(content, format);
+  let epics: Epic[];
+  if (format === 'plan') {
+    epics = parsePlan(content, dirname(filePath));
+  } else if (format === 'phase-file') {
+    epics = parsePhaseFile(content);
+  } else {
+    epics = parseEpics(content, format);
+  }
 
   try {
     return RoadmapSchema.parse({ milestone, epics });

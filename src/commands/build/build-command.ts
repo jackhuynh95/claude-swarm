@@ -79,9 +79,13 @@ buildCommand
 
 buildCommand
   .command('run')
-  .description('Execute tasks from a roadmap file or GitHub epic issues')
-  .option('--roadmap <path>', 'Run from a roadmap markdown file (@path supported)')
-  .option('--phase <n>', 'Run specific phase from roadmap (1-indexed)', parseInt)
+  .description('Execute tasks from a roadmap/plan/phase file or GitHub epic issues.\n' +
+    '  --roadmap accepts three inputs:\n' +
+    '    1. docs/implement-roadmap-*.md  (multi-phase doc, use --phase N to pick one)\n' +
+    '    2. plans/<slug>/plan.md         (wrapper — expands to all linked phase-*.md)\n' +
+    '    3. plans/<slug>/phase-*.md      (single phase, runnable directly; use --from-task N)')
+  .option('--roadmap <path>', 'Path to roadmap doc, plan.md, or phase-*.md (@path supported)')
+  .option('--phase <n>', 'Run specific phase from roadmap doc (1-indexed)', parseInt)
   .option('--issue <n>', 'GitHub issue number to sync progress checklist to', parseInt)
   .option('--epic <n>', '[DEPRECATED] Run specific GitHub epic by issue number', parseInt)
   .option('--all', 'Run all phases (roadmap) or all epics (deprecated)')

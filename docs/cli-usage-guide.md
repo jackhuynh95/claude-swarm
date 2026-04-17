@@ -497,9 +497,22 @@ claude-swarm build from-scratch "Admin dashboard" --dry-run
 
 ### run
 
-Execute plan→cook→test→ship pipeline for epics. After each task commit, builder runs debrief → lesson extraction → journal via `/2nd-brain:obsidian-journal` → knowledge extraction. Writes vault traces to `Daily/`, `Runs/`, `Review/`, `Knowledge/`, `Notes/`.
+Execute plan→cook→test→ship pipeline for tasks. After each task commit, builder runs debrief → lesson extraction → journal via `/2nd-brain:obsidian-journal` → knowledge extraction. Writes vault traces to `Daily/`, `Runs/`, `Review/`, `Knowledge/`, `Notes/`.
+
+`--roadmap` accepts three input types:
+
+1. **Roadmap doc** — `docs/implement-roadmap-*.md` (multi-phase; use `--phase N` to pick one)
+2. **plan.md wrapper** — `plans/<slug>/plan.md` (expands to all linked `phase-*.md` as tasks)
+3. **Single phase file** — `plans/<slug>/phase-*.md` (runnable directly; `--from-task N` scopes to inner tasks parsed from the phase's `## Todo` checklist, or a synthesized single task from the phase title)
 
 ```bash
+# whole plan
+claude-swarm build run --auto --roadmap @plans/<slug>/plan.md
+
+# single phase, resume from task 3
+claude-swarm build run --auto --roadmap @plans/<slug>/phase-02-*.md --from-task 3
+
+# legacy: GitHub epic issues
 claude-swarm build run --epic <n> [options]
 ```
 
@@ -507,10 +520,13 @@ claude-swarm build run --epic <n> [options]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--epic <n>` | **Required.** Run specific epic by issue number | — |
+| `--roadmap <path>` | Roadmap doc, `plan.md`, or `phase-*.md` (@path supported) | — |
+| `--phase <n>` | Pick phase N from a roadmap doc (1-indexed) | — |
+| `--from-task <n>` | Skip tasks with ID < N (scoped to current roadmap/phase) | — |
+| `--epic <n>` | **[DEPRECATED]** Run specific GitHub epic by issue number | — |
 | `--all` | Run all open epics (label: epic) | `false` |
-| `--from <n>` | Resume from epic number N (with --all) | — |
-| `--from-issue <n>` | Skip child issues < N within an epic | — |
+| `--from <n>` | Resume from epic/phase number N | — |
+| `--from-issue <n>` | Alias of `--from-task` (legacy) | — |
 | `--hard` | Deep analysis: plan red-team + predict per issue | `false` |
 | `--auto` | Enable auto mode for all claude calls | `false` |
 | `--budget <n>` | Max USD per claude call | — |
